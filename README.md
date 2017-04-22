@@ -35,18 +35,18 @@ and compile:
 
 After compiling, run 
 
->  ri-build <input>
+>  ri-build input
 
 This command will create the r-index of the text file "input" and will store it as "input.ri". Use option -o to specify a different basename for the index file. 
 
 Run
 
-> ri-count <index.ri> <patterns>
+> ri-count index.ri patterns
 
 to count number of occurrences of the patterns, where <patterns> is a file containing the patterns in pizza&chili format (http://pizzachili.dcc.uchile.cl/experiments.html)
 
 Run
 
-> ri-locate <index> <patterns>
+> ri-locate index patterns
 
 to locate all occurrences of the patterns.
