@@ -7,7 +7,15 @@ Joint work with Travis Gagie
 
 WORK STILL IN PROGRESS!
 
-The r-index is the first full-text index of size O(r), r being the number of BWT runs of the input text (of size n). Unlikely other BWT-based indexes, the r-index stores only 2r suffix array samples. Despite the reduced suffix array sampling, the r-index is able to locate pattern occurrences in near-optimal time O(m + occ*log(n/r)): this is much faster than classic FM indexes using a regularly sampled suffix array to support locate. 
+The r-index is the first full-text index of size O(r), r being the number of BWT runs of the input text (of size n), supporting fast (almost optimal) locate of pattern occurrences. The r-index employs a novel suffix array sampling of size 2r; in classical FM-indexes, this sampling would result in a locate time of Omega(n/r) per occurrence. The r-index, on the other hand, reduces this time to O(log(n/r)).
+
+Let s be the alphabet size and fix a constant eps>0. The r-index offers the following tradeoffs:
+
+- Space: r * ( log s + log(n/r) + (2+eps)*log n ) bits
+- Count time: O( (m/eps) * (log (n/r) + log s) )
+- Locate time: O(log(n/r)) per occurrence (after count)
+
+Another positive feature is that, during locate, we use only O(1) space on top of the index to locate all occ pattern occurrences. This is not true, e.g., in Lempel-Ziv indexes, which in the worst case use O(occ) space. 
 
 ### Download
 
