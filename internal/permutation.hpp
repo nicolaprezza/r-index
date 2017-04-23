@@ -41,7 +41,7 @@ public:
 	 * constructor. build permutation given in input the permutation P and the sampling
 	 * factor t
 	 */
-	permutation(vector<ulint> Perm, ulint t = 8){
+	permutation(vector<ulint> Perm, ulint t = 10){
 
 		ulint r = Perm.size();
 		this->t = t;
@@ -187,6 +187,8 @@ public:
 	 */
 	ulint inv(ulint i){
 
+		auto orig = i;
+
 		//have we gone backward yet?
 		bool bw = false;
 
@@ -199,6 +201,8 @@ public:
 			bw = bw or smp;
 
 		}
+
+		assert(map(i)==orig);
 
 		return i;
 

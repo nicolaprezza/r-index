@@ -18,7 +18,7 @@ int main(int argc, char** argv){
 	if(argc != 2)
 		help();
 
-	r_index<> idx;
+	r_index idx;
 	idx.load_from_file(argv[1]);
 
 	auto space = idx.print_space();

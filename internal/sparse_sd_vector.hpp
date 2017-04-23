@@ -1,5 +1,5 @@
  /*
-  * sparse_sd_vector: a wrapper on sd_vector of the sdsl library
+  * sparse_sd_vector: a wrapper on sd_vector of the sdsl library, with support for rank/select1
   */
 
 //============================================================================
@@ -9,7 +9,6 @@
 #define INTERNAL_SPARSE_SD_VECTOR_HPP_
 
 #include <vector>
-#include <sdsl/bit_vectors.hpp>
 
 using namespace std;
 using namespace sdsl;
@@ -24,7 +23,6 @@ typedef uint32_t uint;
 
 namespace ri{
 
-template<typename = ulint> //this is not used: legacy template parameter
 class sparse_sd_vector{
 
 public:

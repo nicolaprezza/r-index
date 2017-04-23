@@ -7,10 +7,15 @@
  *  A run-length encoded string with rank/access functionalities.
  *
  *
- *  space of the structure: R * (H0 + log(n/R) + log(n/R)/B + o(1) ) bits, n being text length,
+ *  space of the structure: R * (H0 + log(n/R) + log(n/R)/B ) (1+o(1)) bits, n being text length,
  *  R number of runs, B block length, and H0 zero-order entropy of the run heads.
  *
  *  Time for all operations: O( B*(log(n/R)+H0) )
+ *
+ *  From the paper
+ *
+ *  Djamal Belazzougui, Fabio Cunial, Travis Gagie, Nicola Prezza and Mathieu Raffinot.
+ *  Flexible Indexing of Repetitive Collections. Computability in Europe (CiE) 2017)
  *
  */
 
@@ -24,7 +29,7 @@
 namespace ri{
 
 template<
-	class sparse_bitvector_t = sparse_sd_vector<>, 	//predecessor structure storing run length
+	class sparse_bitvector_t = sparse_sd_vector, 	//predecessor structure storing run length
 	class string_t	= huff_string 					//run heads
 >
 class rle_string{
@@ -207,6 +212,43 @@ public:
 
 	}
 
+	/*
+	 * text position i is inside this run
+	 */
+	ulint run_of_position(ulint i){
+
+		assert(i<n);
+
+		ulint last_block = runs.rank(i);
+		ulint current_run = last_block*B;
+
+		//current position in the string: the first of a block
+		ulint pos = 0;
+		if(last_block>0)
+			pos = runs.select(last_block-1)+1;
+
+		assert(pos <= i);
+
+		ulint dist = i-pos;
+
+		//otherwise, scan at most B runs
+		while(pos < i){
+
+			pos += run_at(current_run);
+			current_run++;
+
+			if(pos<=i) dist = i-pos;
+
+		}
+
+		if(pos>i) current_run--;
+
+		//position i is inside run current_run
+		assert(current_run<R);
+
+		return current_run;
+
+	}
 	//break range: given a range <l',r'> on the string and a character c, this function
 	//breaks <l',r'> in maximal sub-ranges containing character c.
 	//for simplicity and efficiency, we assume that characters at range extremities are both 'c'
@@ -477,7 +519,7 @@ private:
 
 };
 
-typedef rle_string<sparse_sd_vector<> > rle_string_sd;
+typedef rle_string<sparse_sd_vector> rle_string_sd;
 
 }
 

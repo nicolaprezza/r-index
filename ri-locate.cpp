@@ -22,7 +22,7 @@ void search(string idx_basename, string patterns, bool optimize = true){
 
     auto t1 = high_resolution_clock::now();
 
-    r_index<> idx;
+    r_index idx;
 
 	idx.load_from_file(idx_basename);
 

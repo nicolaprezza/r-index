@@ -80,7 +80,7 @@ int main(int argc, char** argv){
 
 	}
 
-	auto idx = r_index<>(input);
+	auto idx = r_index(input);
 	idx.save_to_file(out_basename);
 
 	auto t2 = high_resolution_clock::now();

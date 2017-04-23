@@ -11,20 +11,20 @@
 #ifndef R_INDEX_H_
 #define R_INDEX_H_
 
-#include "definitions.hpp"
-#include "rle_string.hpp"
-#include "sparse_sd_vector.hpp"
+#include <definitions.hpp>
+#include <rle_string.hpp>
+#include <sparse_sd_vector.hpp>
+#include <permutation.hpp>
 
 using namespace sdsl;
 
 namespace ri{
 
-template<
-	class rle_string_t	= rle_string_sd	//run-length encoded string
->
 class r_index{
 
 public:
+
+	using rle_string_t	= rle_string_sd;	//run-length encoded string
 
 	r_index(){}
 
@@ -58,11 +58,136 @@ public:
 				if(bwt_s[i]==TERMINATOR)
 					terminator_position = i;
 
+			assert(input.size()+1 == bwt.size());
+
 		}
 
-		ulint log2n = bitsize(uint64_t(bwt.size()));
+		auto r = bwt.number_of_runs();
 
-		assert(log2n>0);
+		//mark positions on bitvectors U,D
+		//U, D have size bwt.size(): we include text terminator
+
+		/*
+		 * this vector stores the text position associated to the last BWT position
+		 * of each BWT run, except the last.
+		 */
+		vector<ulint> SA_down(r-1);
+
+		{
+
+			vector<bool> U_vec(bwt.size(),false);
+			vector<bool> D_vec(bwt.size(),false);
+
+			//current BWT position (in first cycle will become terminator_position)
+			ulint k = bwt.size();
+
+			//current text position corresponding to bwt position k
+			ulint j = bwt.size()-1;
+
+			//repeat until we are back to the terminator
+			while(k != terminator_position){
+
+				if(k==bwt.size()) k = terminator_position;
+
+				//if not first or last char in the BWT
+				if(k > 0 and k < bwt.size()-1){
+
+					//in this case, k is the first position of its run (Up position)
+					if(bwt[k] != bwt[k-1]){
+
+						U_vec[j] = true;
+
+					}
+
+					//in this case, k is the last position of its run (Down position)
+					if(bwt[k] != bwt[k+1]){
+
+						D_vec[j] = true;
+
+						assert(bwt.run_of_position(k)<r-1);
+						SA_down[bwt.run_of_position(k)] = j;
+
+					}
+
+				}
+
+				k = LF(k);
+				assert(k == terminator_position or j>0);
+				j--;
+
+			}
+
+			//build gap-encoded bitvectors
+			U = sparse_sd_vector(U_vec);
+			D = sparse_sd_vector(D_vec);
+
+		}
+
+
+		//now build the invertible permutations UD, DR
+
+		{
+
+			vector<ulint> UD_vec(r-1,r);
+			vector<ulint> DR_vec(r-1,r);
+
+			//current BWT position (in first cycle will become terminator_position)
+			ulint k = bwt.size();
+
+			//current text position corresponding to bwt position k
+			ulint j = bwt.size()-1;
+
+			//repeat until we are back to the terminator
+			while(k != terminator_position){
+
+				if(k==bwt.size()) k = terminator_position;
+
+				//if not first or last char in the BWT
+				if(k > 0 and k < bwt.size()-1){
+
+					//in this case, k is the first position of its run (Up position)
+					if(bwt[k] != bwt[k-1]){
+
+						assert(D[SA_down[ bwt.run_of_position(k-1)]]);
+						assert(U[j]);
+
+						ulint down = D.rank( SA_down[ bwt.run_of_position(k-1)] );
+						ulint up = U.rank( j );
+
+						//k must be in the next run of k-1
+						assert(bwt.run_of_position(k) == bwt.run_of_position(k-1)+1);
+
+						assert(up<r-1);
+						assert(down<r-1);
+						UD_vec[up] = down;
+
+					}
+
+					//in this case, k is the last position of its run (Down position)
+					if(bwt[k] != bwt[k+1]){
+
+						assert(D[j]);
+						assert(bwt.run_of_position(k)<r-1);
+
+						DR_vec[ D.rank(j) ] = bwt.run_of_position(k);
+
+					}
+
+				}
+
+				k = LF(k);
+				assert(k == terminator_position or j>0);
+				j--;
+
+			}
+
+			assert(not_contains(UD_vec,r));
+			assert(not_contains(DR_vec,r));
+
+			UD = permutation(UD_vec);
+			DR = permutation(DR_vec);
+
+		}
 
 	}
 
@@ -234,6 +359,11 @@ public:
 
 		w_bytes += bwt.serialize(out);
 
+		w_bytes += U.serialize(out);
+		w_bytes += D.serialize(out);
+		w_bytes += UD.serialize(out);
+		w_bytes += DR.serialize(out);
+
 		return w_bytes;
 
 	}
@@ -249,6 +379,11 @@ public:
 		in.read((char*)F.data(),256*sizeof(ulint));
 
 		bwt.load(in);
+
+		U.load(in);
+		D.load(in);
+		UD.load(in);
+		DR.load(in);
 
 	}
 
@@ -307,6 +442,27 @@ public:
 	}
 
 private:
+
+	bool not_contains(vector<ulint> &V, ulint x){
+
+		ulint r=0;
+
+		for(auto y:V){
+
+			if(y==x){
+
+				cout << "failed at run " << r << " / " << V.size() << endl;
+				return false;
+
+			}
+
+			r++;
+
+		}
+
+		return true;
+
+	}
 
 	uint8_t bitsize(uint64_t x){
 
@@ -398,17 +554,52 @@ private:
 
 	static const uchar TERMINATOR = 1;
 
+
+	/*
+	 * sparse RLBWT: r (log sigma + (1+epsilon) * log (n/r)) (1+o(1)) bits
+	 */
+
 	//F column of the BWT (vector of 256 elements)
 	vector<ulint> F;
 	//L column of the BWT, run-length compressed
 	rle_string_t bwt;
-
 	ulint terminator_position = 0;
 
+	/*
+	 * Invertible permutations (i.e. efficient map and inverse):
+	 *
+	 * UD maps text positions associated to first (up) position of each BWT run to
+	 * the last (down) position of the previous run. Size of the permutation is r-1 because
+	 * the last run does not have runs after it.
+	 *
+	 * DR  maps text positions associated to Last (down) position of each BWT run to
+	 * the corresponding BWT run (i.e. last position of that run)
+	 *
+	 * total: 2r log r * (1+epsilon) bits
+	 *
+	 */
+
+	permutation UD; //Up samples to Down samples.
+	permutation DR; //Down samples to BWT runs (last position of each run). Last run is excluded!
+
+	/*
+	 * gap-encoded bitvectors marking with a bit set sampled positions on the text
+	 *
+	 * U : marks text positions that are the first in their BWT run, except for the first run.
+	 * D : marks text positions that are the last in their BWT run, except for the last run.
+	 *
+	 * r-1 bits set in each bitvector. Overall size = 2r log(n/r) bits
+	 *
+	 */
+
+	sparse_sd_vector U;
+	sparse_sd_vector D;
+
+	/*
+	 * overall: UD, DR, U, and D take r log n bits (plus low-order terms)
+	 */
 
 };
-
-typedef r_index<rle_string_sd> rlbwt_sd;		//Elias-Fano encoding of gap lengths (fast)
 
 }
 
