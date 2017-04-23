@@ -1,3 +1,5 @@
+# NB: WORK STILL IN PROGRESS! the library does not work yet
+
 r-index: the run-length BWT index
 ===============
 Author: Nicola Prezza (nicola.prezza@gmail.com)
@@ -5,9 +7,7 @@ Joint work with Travis Gagie
 
 ### Brief description
 
-# NB: WORK STILL IN PROGRESS!
-
-The r-index is the first full-text index of size O(r), r being the number of BWT runs of the input text (of size n), supporting fast (almost optimal) locate of pattern occurrences. The r-index employs a novel suffix array sampling of size 2r; in classical FM-indexes, this sampling would result in a locate time of Omega(n/r) per occurrence. The r-index, on the other hand, reduces this time to O(log(n/r)).
+The r-index is the first full-text index of size O(r), r being the number of runs in the BWT of the input text (of size n), supporting fast (almost optimal) locate of pattern occurrences. The r-index employs a novel suffix array sampling of size 2r; in standard FM-indexes, this sampling would result in a locate time of Omega(n/r) per occurrence. The r-index, on the other hand, reduces this time to O(log(n/r)).
 
 Let s be the alphabet size and fix a constant eps>0. The r-index offers the following tradeoffs:
 
