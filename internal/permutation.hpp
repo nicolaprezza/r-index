@@ -13,7 +13,7 @@
 #ifndef INTERNAL_PERMUTATION_HPP_
 #define INTERNAL_PERMUTATION_HPP_
 
-#include <vector>
+#include <definitions.hpp>
 
 using namespace std;
 using namespace sdsl;
@@ -44,22 +44,117 @@ public:
 	permutation(vector<ulint> Perm, ulint t = 8){
 
 		ulint r = Perm.size();
+		this->t = t;
 
 		assert(r>0);
 
 		uint w = r == 1 ? 1 :  (64-__builtin_clzll(r-1)); //log2 r
 
-		bv = bit_vector(r);
+		sampled = bit_vector(r); //mark sampled positions
+		vector<bool> visited(r,false); //has entry been visited during inversion?
 
 		P = int_vector<>(r,0,w);
 
 		for(ulint i=0;i<r;++i)
 			P[i] = Perm[i];
 
-		//TODO
+		//scan permutation's entries
+		for(ulint i=0;i<r;++i){
 
-		rank1 = bit_vector::rank_1_type(&bv);
+			//if not visited, navigate cycle
+			if(not visited[i]){
 
+				auto start = r;
+				auto current = i;
+				ulint k = 0;
+
+				while(current != start){
+
+					visited[current] = true;
+
+					//sample
+					if(k % t == 0){
+
+						sampled[current] = true;
+
+					}
+
+					//in this case, we just started navigation
+					//and current is the first element
+					if(start==r) start = current;
+
+					//next element
+					current = P[current];
+					k++;
+
+				}
+
+			}
+
+		}
+
+		rank1 = bit_vector::rank_1_type(&sampled);
+		visited = vector<bool>(r,false);
+
+		//init vector of samples
+		S = int_vector<>(rank1(r),0,w);
+
+		//scan permutation's entries and populate S
+		for(ulint i=0;i<r;++i){
+
+			//if not visited, navigate cycle
+			if(not visited[i]){
+
+				ulint k = 0;
+				auto buf = vector<ulint>(t,r);
+
+				auto start = r;
+				auto current = i;
+
+				while(current != start){
+
+					visited[current] = true;
+
+					//if sampled position and sample exists
+					if(k % t == 0){
+
+						assert(sampled[current]);
+
+						S[rank1(current)] = buf[k%t];
+
+					}
+
+					buf[k%t] = current;
+
+					//in this case, we just started navigation
+					//and current is the first element
+					if(start==r) start = current;
+
+					//next element
+					current = P[current];
+					k++;
+
+				}
+
+				//t more cycles
+				for(ulint j=0;j<t;++j){
+
+					if(sampled[current]){
+
+						S[rank1(current)] = buf[k%t];
+
+					}
+
+					buf[k%t] = current;
+
+					k++;
+					current = P[current];
+
+				}
+
+			}
+
+		}
 
 	}
 
@@ -92,7 +187,20 @@ public:
 	 */
 	ulint inv(ulint i){
 
-		return 0;//TODO
+		//have we gone backward yet?
+		bool bw = false;
+
+		for(ulint j=0;j<t;++j){
+
+			bool smp = sampled[i];
+
+			i = bw or (not smp) ? P[i] : S[rank1(i)];
+
+			bw = bw or smp;
+
+		}
+
+		return i;
 
 	}
 
@@ -103,7 +211,11 @@ public:
 
 		ulint size=0;
 
-		size += bv.serialize(out);
+		out.write((char*)&t, sizeof(t));
+		size += sizeof(t);
+		assert(size>0);
+
+		size += sampled.serialize(out);
 		assert(size>0);
 
 		size += P.serialize(out);
@@ -121,17 +233,20 @@ public:
 	 */
 	void load(std::istream& in) {
 
-		bv.load(in);
+		in.read((char*)&t, sizeof(t));
+		sampled.load(in);
 		P.load(in);
 		S.load(in);
 
-		rank1 = bit_vector::rank_1_type(&bv);
+		rank1 = bit_vector::rank_1_type(&sampled);
 
 	}
 
 private:
 
-	bit_vector bv; //sampled elements
+	ulint t = 0;
+
+	bit_vector sampled; //sampled elements
 	bit_vector::rank_1_type rank1;
 
 	int_vector<> P; //the permutation

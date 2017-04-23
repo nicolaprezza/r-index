@@ -1,6 +1,7 @@
 #include <iostream>
-#include "internal/r_index.hpp"
-#include "internal/utils.hpp"
+#include "r_index.hpp"
+#include "utils.hpp"
+#include <permutation.hpp>
 
 using namespace ri;
 using namespace std;
