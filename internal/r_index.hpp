@@ -92,6 +92,9 @@ public:
 				//if not first or last char in the BWT
 				if(k > 0 and k < bwt.size()-1){
 
+					assert(not U_vec[j]);
+					assert(not D_vec[j]);
+
 					//in this case, k is the first position of its run (Up position)
 					if(bwt[k] != bwt[k-1]){
 
@@ -120,6 +123,12 @@ public:
 			//build gap-encoded bitvectors
 			U = sparse_sd_vector(U_vec);
 			D = sparse_sd_vector(D_vec);
+
+			cout << D.rank(D.size()) << " " << r << endl;
+			cout << U.rank(U.size()) << " " << r << endl;
+
+			assert(D.rank(D.size())==r-1);
+			assert(U.rank(U.size())==r-1);
 
 		}
 
