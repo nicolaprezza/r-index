@@ -66,7 +66,11 @@ int main(int argc, char** argv){
 	if(out_basename.compare("")==0)
 		out_basename = string(input_file);
 
+	string idx_file = out_basename;
+	idx_file.append(".ri");
+
 	cout << "Building r-index of input file " << input_file << endl;
+	cout << "Index will be saved to " << idx_file << endl;
 
 	string input;
 

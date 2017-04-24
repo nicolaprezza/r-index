@@ -41,7 +41,7 @@ public:
 	 * constructor. build permutation given in input the permutation P and the sampling
 	 * factor t
 	 */
-	permutation(vector<ulint> Perm, ulint t = 10){
+	permutation(vector<ulint> Perm, ulint t = 6){
 
 		ulint r = Perm.size();
 		this->t = t;

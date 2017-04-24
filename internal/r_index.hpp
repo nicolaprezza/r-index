@@ -25,6 +25,7 @@ class r_index{
 public:
 
 	using rle_string_t	= rle_string_sd;	//run-length encoded string
+	using triple = std::tuple<range_t, ulint, ulint>;
 
 	r_index(){}
 
@@ -35,10 +36,17 @@ public:
 
 		assert(not contains_reserved_chars(input));
 
+		cout << "Text length = " << input.size() << endl << endl;
+
+		cout << "(1/3) Building BWT (libdivsufsort) ... " << flush;
+
 		//build run-length encoded BWT
 		{
 
 			string bwt_s = build_bwt(input);
+
+			cout << "done.\n(2/3) RLE encoding BWT ... " << flush;
+
 			bwt = rle_string_t(bwt_s);
 
 			//build F column
@@ -62,143 +70,89 @@ public:
 
 		}
 
+		cout << "done. " << endl<<endl;
+
 		auto r = bwt.number_of_runs();
 
-		//mark positions on bitvectors U,D
-		//U, D have size bwt.size(): we include text terminator
+		cout << "Number of BWT equal-letter runs: r = " << r << endl;
+		cout << "Rate n/r = " << double(bwt.size())/r << endl;
+		cout << "log2(r) = " << log2(double(r)) << endl;
+		cout << "log2(n/r) = " << log2(double(bwt.size())/r) << endl << endl;
 
-		/*
-		 * this vector stores the text position associated to the last BWT position
-		 * of each BWT run, except the last.
-		 */
-		vector<ulint> SA_down(r-1);
+		cout << "(3/3) Building U, D factorizations and UD, DR permutations ..." << flush;
 
-		{
-
-			vector<bool> U_vec(bwt.size(),false);
-			vector<bool> D_vec(bwt.size(),false);
-
-			//current BWT position (in first cycle will become terminator_position)
-			ulint k = bwt.size();
-
-			//current text position corresponding to bwt position k
-			ulint j = bwt.size()-1;
-
-			//repeat until we are back to the terminator
-			while(k != terminator_position){
-
-				if(k==bwt.size()) k = terminator_position;
-
-				//if not first or last char in the BWT
-				if(k > 0 and k < bwt.size()-1){
-
-					assert(not U_vec[j]);
-					assert(not D_vec[j]);
-
-					//in this case, k is the first position of its run (Up position)
-					if(bwt[k] != bwt[k-1]){
-
-						U_vec[j] = true;
-
-					}
-
-					//in this case, k is the last position of its run (Down position)
-					if(bwt[k] != bwt[k+1]){
-
-						D_vec[j] = true;
-
-						assert(bwt.run_of_position(k)<r-1);
-						SA_down[bwt.run_of_position(k)] = j;
-
-					}
-
-				}
-
-				k = LF(k);
-				assert(k == terminator_position or j>0);
-				j--;
-
-			}
-
-			//build gap-encoded bitvectors
-			U = sparse_sd_vector(U_vec);
-			D = sparse_sd_vector(D_vec);
-
-			cout << D.rank(D.size()) << " " << r << endl;
-			cout << U.rank(U.size()) << " " << r << endl;
-
-			assert(D.rank(D.size())==r-1);
-			assert(U.rank(U.size())==r-1);
-
-		}
-
-
-		//now build the invertible permutations UD, DR
+		auto rank_up = bit_vector::rank_1_type(&sampled_up);
+		auto rank_down = bit_vector::rank_1_type(&sampled_down);
+		auto rank_down_bwt = bit_vector::rank_1_type(&sampled_down_bwt);
 
 		{
 
 			vector<ulint> UD_vec(r-1,r);
 			vector<ulint> DR_vec(r-1,r);
 
-			//current BWT position (in first cycle will become terminator_position)
-			ulint k = bwt.size();
+			//positions in vectors sa_up_samples and sa_down_samples
+			ulint u = 0;
+			ulint d = 0;
 
-			//current text position corresponding to bwt position k
-			ulint j = bwt.size()-1;
+			//scan BWT positions
+			for(ulint k=0;k<bwt.size();++k){
 
-			//repeat until we are back to the terminator
-			while(k != terminator_position){
+				if(sampled_up_bwt[k]){
 
-				if(k==bwt.size()) k = terminator_position;
+					assert(k>0);
+					assert(bwt[k-1]!=bwt[k]);
 
-				//if not first or last char in the BWT
-				if(k > 0 and k < bwt.size()-1){
+					auto u_sample = rank_up(sa_up_samples[u++]);
+					assert(d>0);
+					auto d_sample = rank_down(sa_down_samples[d-1]);
 
-					//in this case, k is the first position of its run (Up position)
-					if(bwt[k] != bwt[k-1]){
+					assert(u_sample<r-1);
+					assert(d_sample<r-1);
 
-						assert(D[SA_down[ bwt.run_of_position(k-1)]]);
-						assert(U[j]);
-
-						ulint down = D.rank( SA_down[ bwt.run_of_position(k-1)] );
-						ulint up = U.rank( j );
-
-						//k must be in the next run of k-1
-						assert(bwt.run_of_position(k) == bwt.run_of_position(k-1)+1);
-
-						assert(up<r-1);
-						assert(down<r-1);
-						UD_vec[up] = down;
-
-					}
-
-					//in this case, k is the last position of its run (Down position)
-					if(bwt[k] != bwt[k+1]){
-
-						assert(D[j]);
-						assert(bwt.run_of_position(k)<r-1);
-
-						DR_vec[ D.rank(j) ] = bwt.run_of_position(k);
-
-					}
+					UD_vec[u_sample] = d_sample;
 
 				}
 
-				k = LF(k);
-				assert(k == terminator_position or j>0);
-				j--;
+				if(sampled_down_bwt[k]){
+
+					assert(k<bwt.size()-1);
+					assert(bwt[k]!=bwt[k+1]);
+
+					//rank of run containing position k
+					auto r_pos = rank_down_bwt(k);
+					auto d_sample = rank_down(sa_down_samples[d++]);
+
+					assert(d_sample<r-1);
+					assert(r_pos<r-1);
+
+					DR_vec[d_sample] = r_pos;
+
+				}
 
 			}
 
+			//check that we filled all permutation's positions
 			assert(not_contains(UD_vec,r));
 			assert(not_contains(DR_vec,r));
 
+			//build permutation structures
 			UD = permutation(UD_vec);
 			DR = permutation(DR_vec);
 
 		}
 
+		//build gap-encoded bitvectors
+		U = sparse_sd_vector(sampled_up);
+		D = sparse_sd_vector(sampled_down);
+
+		assert(D.rank(D.size())==r-1);
+		assert(U.rank(U.size())==r-1);
+
+
+		cout << " done. " << endl<<endl;
+
 	}
+
 
 	/*
 	 * get full BWT range
@@ -318,6 +272,19 @@ public:
 			range = LF(range,P[m-i-1]);
 
 		return range;
+
+	}
+
+	/*
+	 * Retrieve range of input pattern, plus locate an occurrence <j, k> of the pattern, where j is text pos and k is corresponding bwt pos
+	 */
+	triple count_and_get_occ(string &P){
+
+		auto range = full_range();
+		ulint j = 0;
+		ulint k = 0;
+
+		return {range, j, k};
 
 	}
 
@@ -452,6 +419,24 @@ public:
 
 private:
 
+	/*
+	 * temporary vectors used to speed-up construction
+	 */
+
+	//BWT positions associated to first position in each BWT run. In total r-1 entries
+	//because we do not store up sample for the first BWT position
+	vector<ulint> sa_up_samples;
+	//BWT positions associated to first position in each BWT run
+	//in total, r-1 entries: we do not store sample for last BWT position
+	vector<ulint> sa_down_samples;
+
+	//bitvectors of length n marking, respectively, first and last
+	//BWT character in each run
+	bit_vector sampled_up; //mark text positions associated with first position of a run (except first run)
+	bit_vector sampled_down; //mark text positions associated with last position of a run (except last run)
+	bit_vector sampled_up_bwt; //mark first position of each run on bwt (except first run)
+	bit_vector sampled_down_bwt; //mark last position of each run on bwt (except last run)
+
 	bool not_contains(vector<ulint> &V, ulint x){
 
 		ulint r=0;
@@ -504,7 +489,7 @@ private:
 	 * uses 0x1 character as terminator
 	 *
 	 */
-	static string build_bwt(string &s){
+	string build_bwt(string &s){
 
 		string bwt_s;
 
@@ -522,7 +507,7 @@ private:
 
 	    store_to_cache(text, conf::KEY_TEXT, cc);
 
-	    construct_config::byte_algo_sa = SE_SAIS;
+	    construct_config::byte_algo_sa = LIBDIVSUFSORT;
 	    construct_sa<8>(cc);
 
 	    //now build BWT from SA
@@ -541,6 +526,40 @@ private:
 	            	bwt_s.push_back(TERMINATOR);
 
 	        }
+
+	    }
+
+	    sampled_up = bit_vector(bwt_s.size());
+	    sampled_down = bit_vector(bwt_s.size());
+	    sampled_up_bwt = bit_vector(bwt_s.size());
+	    sampled_down_bwt = bit_vector(bwt_s.size());
+
+	    /*
+	     * scan BWT and suffix array
+	     */
+	    for(ulint k=0;k<bwt_s.size();++k){
+
+    		//text position associated with bwt position k
+    		ulint j = sa[k]>0 ? sa[k]-1 : bwt_s.size()-1;
+
+	    	//position k is the first in its run
+	    	if(k>0 and bwt_s[k]!=bwt_s[k-1]){
+
+	    		sampled_up_bwt[k] = true;
+	    		sampled_up[j] = true;
+	    		sa_up_samples.push_back( j );
+
+	    	}
+
+	    	//position k is the last in its run
+			if(k<bwt_s.size()-1 and bwt_s[k]!=bwt_s[k+1]){
+
+	    		sampled_down_bwt[k] = true;
+	    		sampled_down[j] = true;
+
+	    		sa_down_samples.push_back( j );
+
+			}
 
 	    }
 

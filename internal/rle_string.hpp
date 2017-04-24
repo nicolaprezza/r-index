@@ -44,7 +44,7 @@ public:
 	 * \param B block size. The main sparse bitvector has R/B bits set (R being number of runs)
 	 *
 	 */
-	rle_string(string &input, ulint B = 8){
+	rle_string(string &input, ulint B = 2){
 
 		assert(not contains0(input));
 

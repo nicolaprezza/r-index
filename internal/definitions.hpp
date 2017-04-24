@@ -26,6 +26,7 @@
 #include <sys/stat.h>
 #include <fstream>
 #include <assert.h>
+#include <tuple>
 
 using namespace std;
 
