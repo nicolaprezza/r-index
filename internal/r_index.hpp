@@ -176,7 +176,7 @@ public:
 
 		//if character does not appear in the text, return empty pair
 		if((c==255 and F[c]==bwt_size()) || F[c]>=F[c+1])
-			return empty_range;
+			return {1,0};
 
 		//number of c before the interval
 		ulint c_before = bwt.rank(rn.first,c);
@@ -185,7 +185,7 @@ public:
 		ulint c_inside = bwt.rank(rn.second+1,c) - c_before;
 
 		//if there are no c in the interval, return empty range
-		if(c_inside==0) return empty_range;
+		if(c_inside==0) return {1,0};
 
 		ulint l = F[c] + c_before;
 
@@ -201,9 +201,16 @@ public:
 	 */
 	ulint next_SA(ulint j){
 
-		ulint i=0;
+		auto rn = D.rank(j);
 
-		return i;
+		auto pred_d_rank = rn == 0 ? D.rank(D.size())-1 : rn-1;//predecessor in rank space
+		auto pred_d = D.select(pred_d_rank);//text position
+
+		auto delta = pred_d == bwt.size()-1 ? j+1 : j-pred_d;
+
+		auto pred_u = U.select(DU[pred_d_rank]);
+
+		return (pred_u + delta) % bwt.size();
 
 	}
 
@@ -215,9 +222,19 @@ public:
 	 */
 	ulint prev_SA(ulint j){
 
-		ulint i=0;
+		//in this case, k = 0: no previous SA sample
+		assert(j != bwt.size()-1);
 
-		return i;
+		auto rn = U.rank(j);
+
+		auto pred_u_rank = rn == 0 ? U.rank(U.size())-1 : rn-1;//predecessor in rank space
+		auto pred_u = U.select(pred_u_rank);//text position
+
+		auto delta = pred_u == bwt.size()-1 ? j+1 : j-pred_u;
+
+		auto pred_d = D.select(DU.inv(pred_u_rank));
+
+		return (pred_d + delta) % bwt.size();
 
 	}
 
@@ -275,7 +292,7 @@ public:
 
 		//if character does not appear in the text, return empty pair
 		if((c==255 and F[c]==bwt_size()) || F[c]>=F[c+1])
-			return empty_range;
+			return {1,0};
 
 		ulint l = F[c];
 		ulint r = bwt_size()-1;
@@ -303,6 +320,17 @@ public:
 	}
 
 	/*
+	 * Return number of occurrences of P in the text
+	 */
+	ulint occ(string &P){
+
+		auto rn = count(P);
+
+		return (rn.second-rn.first)+1;
+
+	}
+
+	/*
 	 * iterator locate(string &P){
 	 *
 	 * 	return iterator to iterate over all occurrences without storing them
@@ -310,6 +338,59 @@ public:
 	 *
 	 * }
 	 */
+
+	/*
+	 * locate all occurrences of P and return them in an array
+	 * (space consuming if result is big).
+	 */
+	vector<ulint> locate_all(string& P){
+
+		vector<ulint> OCC;
+
+		triple res = count_and_get_occ(P);
+
+		range_t rn = std::get<0>(res);
+		ulint k = std::get<2>(res);//SA position
+		ulint j = std::get<1>(res);//text position: SA[k]
+
+		assert(k >= rn.first and k <= rn.second);
+
+		OCC.push_back(j);
+
+		ulint before = k - rn.first;//occurrences to extract before k (k excluded)
+		ulint after = rn.second - k;//occurrences to extract after k (k excluded)
+
+		ulint j1 = j;
+
+		/*cout << "rn = " << rn.first << " " << rn.second<<endl;
+		cout << "k = " << k << endl;
+		cout << "before = " << before << endl;
+		cout << "after = " << after << endl;*/
+
+		for(ulint i = 0; i<before;++i){
+
+			j1 = prev_SA(j1);
+			OCC.push_back(j1);
+
+		}
+
+		j1 = j;
+
+		cout << endl;
+
+		for(ulint i = 0; i<after;++i){
+
+			j1 = next_SA(j1);
+			OCC.push_back(j1);
+
+		}
+
+		assert(OCC.size() == (rn.second-rn.first)+1);
+
+		return OCC;
+
+	}
+
 
 	/*
 	 * get number of runs in the BWT (terminator character included)
@@ -475,7 +556,7 @@ private:
 			range1 = LF(range,c);
 
 			//if suffix can be left-extended with char
-			if(range1 != empty_range){
+			if(range1 != range_t(1,0)){
 
 				if(is_unary(range)){
 
@@ -493,7 +574,7 @@ private:
 
 					//find a brand new occurrence
 					k = get_sampled_position(range, c); //careful: k is an L-position
-					j = bwt_sample(k);
+					j = k==0 ? 0 : bwt_sample(k);
 
 					//map from L to F column
 					k = LF(k);
@@ -506,7 +587,7 @@ private:
 
 		}
 
-		return {range, j, k};
+		return triple(range, j, k);
 
 	}
 
@@ -537,7 +618,9 @@ private:
 		 * 2. bwt[rn] = xx...xxcccc...cccc...yy... return position of first c in first c-run
 		 */
 
-		return bwt.closest_run_break(rn,c);
+		ulint k = bwt.closest_run_break(rn,c);
+
+		return k;
 
 	}
 
@@ -712,7 +795,6 @@ private:
 	}
 
 	static const uchar TERMINATOR = 1;
-	static constexpr range_t empty_range = {1,0};
 
 	/*
 	 * sparse RLBWT: r (log sigma + (1+epsilon) * log (n/r)) (1+o(1)) bits

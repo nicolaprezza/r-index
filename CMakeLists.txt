@@ -34,6 +34,11 @@ TARGET_LINK_LIBRARIES(ri-locate sdsl)
 TARGET_LINK_LIBRARIES(ri-locate divsufsort)
 TARGET_LINK_LIBRARIES(ri-locate divsufsort64)
 
+add_executable(ri-locate-check ri-locate-check.cpp)
+TARGET_LINK_LIBRARIES(ri-locate-check sdsl)
+TARGET_LINK_LIBRARIES(ri-locate-check divsufsort)
+TARGET_LINK_LIBRARIES(ri-locate-check divsufsort64)
+
 add_executable(ri-count ri-count.cpp)
 TARGET_LINK_LIBRARIES(ri-count sdsl)
 TARGET_LINK_LIBRARIES(ri-count divsufsort)

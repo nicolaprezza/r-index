@@ -1,14 +1,15 @@
 #include <iostream>
-#include "internal/r_index.hpp"
-#include "internal/utils.hpp"
+#include <r_index.hpp>
+#include <utils.hpp>
+#include <s_rlbwt.hpp>
 
 using namespace ri;
 using namespace std;
 
 void help(){
-	cout << "ri-locate: locate all occurrences of the input patterns." << endl << endl;
+	cout << "ri-locate-check: check correctness of ri-index by comparing with a standard rlbwt index" << endl << endl;
 
-	cout << "Usage: ri-locate <index> <patterns>" << endl;
+	cout << "Usage: ri-locate-check <r-index> <rlbwt-index> <patterns>" << endl;
 	cout << "   <index>      index file (with extension .ri)" << endl;
 	cout << "   <patterns>   file in pizza&chili format containing the patterns." << endl;
 	exit(0);

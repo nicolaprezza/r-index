@@ -108,6 +108,39 @@ public:
 	}
 
 	/*
+	 * input: position 0<=i<=n
+	 * output: predecessor of i (position i excluded) in
+	 * rank space (apply select to get bitvector space)
+	 */
+	ulint predecessor_rank(ulint i){
+
+		/*
+		 * i must have a predecessor
+		 */
+		assert(rank(i)>0);
+
+		return rank(i)-1;
+
+	}
+
+	/*
+	 * input: position 0<=i<=n
+	 * output: predecessor of i (i excluded) in
+	 * bitvector space
+	 */
+	ulint predecessor(ulint i){
+
+		/*
+		 * i must have a predecessor
+		 */
+		assert(rank(i)>0);
+
+		return select(rank(i)-1);
+
+
+	}
+
+	/*
 	 * retrieve length of the i-th gap (i>=0). gap length includes the leading 1
 	 * \param i<number_of_1()
 	 *
