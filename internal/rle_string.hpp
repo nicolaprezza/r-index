@@ -436,9 +436,58 @@ public:
 
 	}
 
+	/*
+	 * input: inclusive run rn, character c
+	 *
+	 * return the position j that is closest to rn.first,
+	 * such that character in position j is c and that is
+	 * adjacent to a position j' inside rn that contains a
+	 * character != c
+	 *
+	 * rn must contain c and at least another character d!=c
+	 *
+	 */
+	ulint closest_run_break(range_t rn, uchar c){
+
+		/*
+		 * case 1: range begins with a c-run: return last position of the run
+		 */
+		if(operator[](rn.first)==c){
+
+			ulint i = run_of_position(rn.first);
+
+			ulint j = run_range(i).second;
+
+			//j must be inside rn, i.e. rn must not contain only c
+			//j must not be last position of rn: this would imply
+			//that rn contain only c
+			assert(j<rn.second);
+
+			return j;
+
+		}else{
+
+			//case 2: first c-run starts in the middle of the range
+
+			//rank i of first c in the range
+			ulint i = rank(rn.first,c);
+
+			assert(i<rank(size(),c));
+
+			//map from rank space to string position:
+			//i now is the first position inside the range that contains c
+			i = select(i,c);
+
+			assert(operator[](i)==c);
+			assert(i<=rn.second);
+
+			return i;
+
+		}
+
+	}
 
 private:
-
 
 	static ulint count_runs(string &s){
 

@@ -38,7 +38,7 @@ public:
 
 		cout << "Text length = " << input.size() << endl << endl;
 
-		cout << "(1/3) Building BWT (libdivsufsort) ... " << flush;
+		cout << "(1/3) Building BWT (SE-SAIS) ... " << flush;
 
 		//build run-length encoded BWT
 		{
@@ -79,7 +79,7 @@ public:
 		cout << "log2(r) = " << log2(double(r)) << endl;
 		cout << "log2(n/r) = " << log2(double(bwt.size())/r) << endl << endl;
 
-		cout << "(3/3) Building U, D factorizations and UD, DR permutations ..." << flush;
+		cout << "(3/3) Building U, D factorizations and DU, RD permutations ..." << flush;
 
 		auto rank_up = bit_vector::rank_1_type(&sampled_up);
 		auto rank_down = bit_vector::rank_1_type(&sampled_down);
@@ -87,8 +87,8 @@ public:
 
 		{
 
-			vector<ulint> UD_vec(r-1,r);
-			vector<ulint> DR_vec(r-1,r);
+			vector<ulint> DU_vec(r-1,r);
+			vector<ulint> RD_vec(r-1,r);
 
 			//positions in vectors sa_up_samples and sa_down_samples
 			ulint u = 0;
@@ -109,7 +109,7 @@ public:
 					assert(u_sample<r-1);
 					assert(d_sample<r-1);
 
-					UD_vec[u_sample] = d_sample;
+					DU_vec[d_sample] = u_sample;
 
 				}
 
@@ -125,19 +125,19 @@ public:
 					assert(d_sample<r-1);
 					assert(r_pos<r-1);
 
-					DR_vec[d_sample] = r_pos;
+					RD_vec[r_pos] = d_sample;
 
 				}
 
 			}
 
 			//check that we filled all permutation's positions
-			assert(not_contains(UD_vec,r));
-			assert(not_contains(DR_vec,r));
+			assert(not_contains(DU_vec,r));
+			assert(not_contains(RD_vec,r));
 
 			//build permutation structures
-			UD = permutation(UD_vec);
-			DR = permutation(DR_vec);
+			DU = permutation(DU_vec);
+			RD = permutation(RD_vec);
 
 		}
 
@@ -152,7 +152,6 @@ public:
 		cout << " done. " << endl<<endl;
 
 	}
-
 
 	/*
 	 * get full BWT range
@@ -177,7 +176,7 @@ public:
 
 		//if character does not appear in the text, return empty pair
 		if((c==255 and F[c]==bwt_size()) || F[c]>=F[c+1])
-			return {1,0};
+			return empty_range;
 
 		//number of c before the interval
 		ulint c_before = bwt.rank(rn.first,c);
@@ -186,11 +185,39 @@ public:
 		ulint c_inside = bwt.rank(rn.second+1,c) - c_before;
 
 		//if there are no c in the interval, return empty range
-		if(c_inside==0) return {1,0};
+		if(c_inside==0) return empty_range;
 
 		ulint l = F[c] + c_before;
 
 		return {l,l+c_inside-1};
+
+	}
+
+	/*
+	 * input: position j on the text corresponding to some
+	 * position k on the F-column of the BWT (i.e. SA[k]=j)
+	 *
+	 * output: SA[k+1]
+	 */
+	ulint next_SA(ulint j){
+
+		ulint i=0;
+
+		return i;
+
+	}
+
+	/*
+	 * input: position j on the text corresponding to some
+	 * position k on the F-column of the BWT (i.e. SA[k]=j)
+	 *
+	 * output: SA[k-1]
+	 */
+	ulint prev_SA(ulint j){
+
+		ulint i=0;
+
+		return i;
 
 	}
 
@@ -248,7 +275,7 @@ public:
 
 		//if character does not appear in the text, return empty pair
 		if((c==255 and F[c]==bwt_size()) || F[c]>=F[c+1])
-			return {1,0};
+			return empty_range;
 
 		ulint l = F[c];
 		ulint r = bwt_size()-1;
@@ -272,19 +299,6 @@ public:
 			range = LF(range,P[m-i-1]);
 
 		return range;
-
-	}
-
-	/*
-	 * Retrieve range of input pattern, plus locate an occurrence <j, k> of the pattern, where j is text pos and k is corresponding bwt pos
-	 */
-	triple count_and_get_occ(string &P){
-
-		auto range = full_range();
-		ulint j = 0;
-		ulint k = 0;
-
-		return {range, j, k};
 
 	}
 
@@ -337,8 +351,8 @@ public:
 
 		w_bytes += U.serialize(out);
 		w_bytes += D.serialize(out);
-		w_bytes += UD.serialize(out);
-		w_bytes += DR.serialize(out);
+		w_bytes += DU.serialize(out);
+		w_bytes += RD.serialize(out);
 
 		return w_bytes;
 
@@ -358,8 +372,8 @@ public:
 
 		U.load(in);
 		D.load(in);
-		UD.load(in);
-		DR.load(in);
+		DU.load(in);
+		RD.load(in);
 
 	}
 
@@ -437,6 +451,141 @@ private:
 	bit_vector sampled_up_bwt; //mark first position of each run on bwt (except first run)
 	bit_vector sampled_down_bwt; //mark last position of each run on bwt (except last run)
 
+	/*
+	 * Retrieve range of input pattern, plus locate an occurrence <j, k> of the pattern, where j is text pos and k is corresponding bwt F-position, i.e. SA[k] = j
+	 *
+	 * returns <range, j,k>
+	 *
+	 */
+	triple count_and_get_occ(string &P){
+
+		//coordinates of an occurrence of current pattern suffix
+		ulint j = 0;
+		ulint k = 0;
+
+		range_t range = full_range();
+		range_t range1;
+
+		ulint m = P.size();
+
+		for(ulint i=0;i<m and range.second>=range.first;++i){
+
+			uchar c = P[m-i-1];
+
+			range1 = LF(range,c);
+
+			//if suffix can be left-extended with char
+			if(range1 != empty_range){
+
+				if(is_unary(range)){
+
+					assert(i>0);
+
+					assert(j>0);
+
+					//j-1 is an occurrence of the new pattern suffix
+					j = j-1;
+
+					//k is the new SA position corresponding to j
+					k = LF(k);
+
+				}else{
+
+					//find a brand new occurrence
+					k = get_sampled_position(range, c); //careful: k is an L-position
+					j = bwt_sample(k);
+
+					//map from L to F column
+					k = LF(k);
+
+				}
+
+			}
+
+			range = range1;
+
+		}
+
+		return {range, j, k};
+
+	}
+
+	/*
+	 * input: inclusive BWT range rn and character c
+	 *
+	 * find a BWT position k inside rn such that bwt[k]=c and k is sampled
+	 * (i.e. k is the first or last position of its run and k is not first or last
+	 * BWT position). Return k
+	 *
+	 */
+	ulint get_sampled_position(range_t rn, uchar c){
+
+		//check that rn contains at least 2 characters
+		assert(not is_unary(rn));
+
+		//check that BWT range contains character c
+		assert(LF(rn,c) != range_t(1,0));
+
+		/*
+		 * Heuristic: retrieving SA[k-1] from SA[k] requires using permutation UD ( O(1/epsilon) time),
+		 * while retrieving SA[k+1] from SA[k] requires using permutation DU ( O(1) time). It follows that is more
+		 * efficient to extract SA entries from top to bottom of the range => better to locate top entries in the
+		 * BWT range (so we minimize number of bottom-up steps). We therefore consider these 2 cases (rather than
+		 * the symmetric ones):
+		 *
+		 * 1. bwt[rn] = ccc..cccx.... return position of last c in the first c-run
+		 * 2. bwt[rn] = xx...xxcccc...cccc...yy... return position of first c in first c-run
+		 */
+
+		return bwt.closest_run_break(rn,c);
+
+	}
+
+	/*
+	 * input: inclusive BWT range [L..R]
+	 *
+	 * output: true iff BWT[L..R] is a unary string
+	 *
+	 */
+	bool is_unary(range_t rn){
+
+		return bwt.run_of_position(rn.first) == bwt.run_of_position(rn.second);
+
+	}
+
+	/*
+	 * input: position k on the BWT
+	 *
+	 * k must be a sampled position, i.e. first or last in its run AND
+	 * not the first or last BWT positions
+	 *
+	 * return: text position j associated with BWT position k
+	 *
+	 */
+	ulint bwt_sample(ulint k){
+
+		assert(k>0);
+		assert(k<bwt.size()-1);
+		assert(bwt[k] != bwt[k-1] or bwt[k] != bwt[k+1]);
+
+		//is k the last position of its run? (recall that we sample down positions)
+		bool down = bwt[k] != bwt[k+1];
+
+		//run of BWT position k or k-1 (depending on who is a down position)
+		ulint run = bwt.run_of_position(down ? k : k-1);
+
+		//locate down position
+		ulint rd_run = RD[run];
+
+		//if k is a down position, map from D-rank space to text. Otherwise,
+		//map from D-rank space to U-rank space (i.e. move down in the BWT)
+		//and then pass from U-rank space to text position
+		ulint sample = down ? D.select(rd_run) : U.select(DU[rd_run]);
+
+		return sample;
+
+	}
+
 	bool not_contains(vector<ulint> &V, ulint x){
 
 		ulint r=0;
@@ -465,24 +614,6 @@ private:
 
 	}
 
-	/*
-	 * check if range rn on column F contains a
-	 * single character
-	 */
-	bool uniq_char(range_t rn){
-
-		for(ulint i=0;i<256;++i){
-
-			ulint l = F[i];
-			ulint r = (i==255?bwt_size():F[i+1]);
-
-			if(rn.first >= l and rn.second < r ) return true;
-
-		}
-
-		return false;
-
-	}
 
 	/*
 	 * builds BWT of input string using SE_SAIS algorithm
@@ -507,7 +638,7 @@ private:
 
 	    store_to_cache(text, conf::KEY_TEXT, cc);
 
-	    construct_config::byte_algo_sa = LIBDIVSUFSORT;
+	    construct_config::byte_algo_sa = SE_SAIS;
 	    construct_sa<8>(cc);
 
 	    //now build BWT from SA
@@ -581,7 +712,7 @@ private:
 	}
 
 	static const uchar TERMINATOR = 1;
-
+	static constexpr range_t empty_range = {1,0};
 
 	/*
 	 * sparse RLBWT: r (log sigma + (1+epsilon) * log (n/r)) (1+o(1)) bits
@@ -596,19 +727,19 @@ private:
 	/*
 	 * Invertible permutations (i.e. efficient map and inverse):
 	 *
-	 * UD maps text positions associated to first (up) position of each BWT run to
-	 * the last (down) position of the previous run. Size of the permutation is r-1 because
-	 * the last run does not have runs after it.
+	 * DU maps (D-ranks of) text positions associated to last (down) position of each BWT run to
+	 * the (U-ranks of) first (up) position of the next run. Size of the permutations is r-1 because
+	 * the first/last run does not have runs before/after it.
 	 *
-	 * DR  maps text positions associated to Last (down) position of each BWT run to
-	 * the corresponding BWT run (i.e. last position of that run)
+	 * RD  maps BWT runs to text (D-ranks of) text positions associated to the Last (down) position
+	 * of the corresponding BWT run (i.e. D-rank of text position associated to last position of that run)
 	 *
 	 * total: 2r log r * (1+epsilon) bits
 	 *
 	 */
 
-	permutation UD; //Up samples to Down samples.
-	permutation DR; //Down samples to BWT runs (last position of each run). Last run is excluded!
+	permutation DU; //Down samples to Up samples (all in rank space on D and U)
+	permutation RD; //BWT runs to down samples on text in rank space (i.e. bitvector D). Last run is excluded!
 
 	/*
 	 * gap-encoded bitvectors marking with a bit set sampled positions on the text
@@ -624,7 +755,7 @@ private:
 	sparse_sd_vector D;
 
 	/*
-	 * overall: UD, DR, U, and D take r log n bits (plus low-order terms)
+	 * overall: DU, RD, U, and D take r log n bits (plus low-order terms)
 	 */
 
 };
