@@ -15,8 +15,6 @@ Let s be the alphabet size and fix a constant eps>0. The r-index offers the foll
 - Count time: O( (m/eps) * (log (n/r) + log s) )
 - Locate time: After count, O( log(n/r) + 1/eps ) time per occurrence 
 
-<Another positive feature is that, during locate, we use only O(1) space on top of the index to locate all occ pattern occurrences. This is not true, e.g., in Lempel-Ziv indexes, which in the worst case use O(occ) space.> 
-
 On very repetitive datasets, the r-index locates about 20 times faster than the RLCSA (with a sampling rate resulting in the same size for the two indexes).
 
 ### Download
