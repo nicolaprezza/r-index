@@ -1,30 +1,33 @@
 #include <iostream>
 #include <r_index.hpp>
 #include <utils.hpp>
-#include <s_rlbwt.hpp>
 
 using namespace ri;
 using namespace std;
 
 void help(){
-	cout << "ri-locate-check: check correctness of r-index by comparing with the s-rlbwt index" << endl;
+	cout << "ri-locate-check: check correctness of r-index by verifying occurrences on text" << endl;
 	cout << "of https://github.com/nicolaprezza/s-rlbwt" << endl << endl;
 
-	cout << "Usage: ri-locate-check <idx_prefix> <patterns>" << endl;
-	cout << "   <idx_prefix>   common prefix of r-index and s-rlbwt files." << endl;
-	cout << "                  Extensions .ri and .srlbwt are automatically added." << endl;
+	cout << "Usage: ri-locate-check <idx> <text> <patterns>" << endl;
+	cout << "   <idx>        r-index file name" << endl;
+	cout << "   <text>       indexed text file name" << endl;
 	cout << "   <patterns>   file in pizza&chili format containing the patterns." << endl;
 	exit(0);
 }
 
-void search(string r_idx_file, string rlbwt_idx_file, string patterns){
+void search(string r_idx_file, string input_file, string patterns){
 
     r_index r_idx;
-    s_rlbwt rlbwt;
 
-    cout << "Loading indexes ... " << flush;
+    ifstream ifs1(input_file);
+    stringstream ss;
+    ss << ifs1.rdbuf();//read the file
+    string text = ss.str();
+    ifs1.close();
+
+    cout << "Loading r-index ... " << flush;
 	r_idx.load_from_file(r_idx_file);
-	rlbwt.load_from_file(rlbwt_idx_file);
 	cout << "done." << endl;
 
 	cout << "searching patterns ... " << endl;
@@ -60,26 +63,26 @@ void search(string r_idx_file, string rlbwt_idx_file, string patterns){
 		}
 
 
-		//vector<ulint> OCC_1 = r_idx.locate_all(p);
-		vector<ulint> OCC_2 = rlbwt.locate(p);
+		vector<ulint> OCC = r_idx.locate_all(p);
 
-		//std::sort(OCC_1.begin(), OCC_1.end());
-		//std::sort(OCC_2.begin(), OCC_2.end());
+		if(OCC.size() != r_idx.occ(p)){
 
-		/*if(OCC_1 != OCC_2){
-
-			cout << "Error: occurrences do not coincide:" << endl;
-
-			for(auto o : OCC_1) cout << o << " ";
-			cout << endl << endl;
-			for(auto o : OCC_2) cout << o << " ";
-			cout << endl << endl;
-
+			cout << "Error: wrong number of located occurrences: " << OCC.size() << "/" << r_idx.occ(p) << endl;
 			exit(0);
 
-		}*/
+		}
 
-		//cout << OCC_1.size() << " occurrences" << endl;
+
+		for(auto o:OCC){
+
+			if(text.substr(o,p.size()).compare(p) != 0){
+
+				cout << "Error: wrong occurrence: " << o << endl;
+				exit(0);
+
+			}
+
+		}
 
 	}
 
@@ -91,12 +94,9 @@ void search(string r_idx_file, string rlbwt_idx_file, string patterns){
 
 int main(int argc, char** argv){
 
-	if(argc != 3)
+	if(argc != 4)
 		help();
 
-	string r_idx_file(argv[1]);
-	r_idx_file.append(".ri");
-
-	search(r_idx_file,argv[1],argv[2]);
+	search(argv[1],argv[2],argv[3]);
 
 }
