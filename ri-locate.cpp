@@ -61,15 +61,16 @@ void search(string idx_basename, string patterns, bool optimize = true){
 			p+=c;
 		}
 
-		cout << "locating " << idx.occ(p) << " occurrences of "<< p << " ... " << flush;
+		///cout << "locating " << idx.occ(p) << " occurrences of "<< p << " ... " << flush;
 
 		auto OCC = idx.locate_all(p);	//occurrences
 
-		cout << "done." << endl;
+		occ_tot += OCC.size();
 
+		/*cout << "done." << endl;
 		cout << "OCC = ";
 		for(auto o:OCC) cout << o << " ";
-		cout << endl;
+		cout << endl;*/
 
 	}
 
@@ -90,8 +91,6 @@ void search(string idx_basename, string patterns, bool optimize = true){
 	cout << "number of patterns n = " << n << endl;
 	cout << "pattern length m = " << m << endl;
 	cout << "total number of occurrences  occ_t = " << occ_tot << endl;
-	cout << "m * occ_t  = " << occ_tot*m << endl;
-	cout << "n*m + occ_t  = " << n*m+occ_tot << endl << endl;
 
 	cout << "Total time : " << search << " milliseconds" << endl;
 	cout << "Search time : " << (double)search/n << " milliseconds/pattern (total: " << n << " patterns)" << endl;
@@ -104,7 +103,7 @@ int main(int argc, char** argv){
 	if(argc != 3)
 		help();
 
-	cout << "Loading s-rlbwt index" << endl;
+	cout << "Loading r-index" << endl;
 	search(argv[1],argv[2]);
 
 }
