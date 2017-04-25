@@ -362,11 +362,6 @@ public:
 
 		ulint j1 = j;
 
-		/*cout << "rn = " << rn.first << " " << rn.second<<endl;
-		cout << "k = " << k << endl;
-		cout << "before = " << before << endl;
-		cout << "after = " << after << endl;*/
-
 		for(ulint i = 0; i<before;++i){
 
 			j1 = prev_SA(j1);
@@ -375,8 +370,6 @@ public:
 		}
 
 		j1 = j;
-
-		cout << endl;
 
 		for(ulint i = 0; i<after;++i){
 
