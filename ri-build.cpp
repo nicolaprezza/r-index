@@ -9,11 +9,13 @@ using namespace std;
 string out_basename=string();
 string input_file=string();
 int sa_rate = 512;
+bool sais=true;
 
 void help(){
 	cout << "ri-build: builds the r-index. Extension .ri is automatically added to output index file" << endl << endl;
 	cout << "Usage: ri-build [options] <input_file_name>" << endl;
 	cout << "   -o <basename>        use 'basename' as prefix for all index files. Default: basename is the specified input_file_name"<<endl;
+	cout << "   -divsufsort          use divsufsort algorithm to build the BWT (fast, memory consuming). By default, SE-SAIS is used (slower, 4n bytes or RAM)"<<endl;
 	cout << "   <input_file_name>    input text file." << endl;
 	exit(0);
 }
@@ -34,6 +36,10 @@ void parse_args(char** argv, int argc, int &ptr){
 
 		out_basename = string(argv[ptr]);
 		ptr++;
+
+	}else if(s.compare("-divsufsort")==0){
+
+		sais = false;
 
 	}else{
 		cout << "Error: unrecognized '" << s << "' option." << endl;
@@ -84,7 +90,7 @@ int main(int argc, char** argv){
 
 	}
 
-	auto idx = r_index(input);
+	auto idx = r_index(input,sais);
 	idx.save_to_file(out_basename);
 
 	auto t2 = high_resolution_clock::now();

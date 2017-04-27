@@ -32,13 +32,17 @@ public:
 	/*
 	 * Build index
 	 */
-	r_index(string &input){
+	r_index(string &input, bool sais = true){
+
+		this->sais = sais;
 
 		assert(not contains_reserved_chars(input));
 
 		cout << "Text length = " << input.size() << endl << endl;
 
-		cout << "(1/3) Building BWT (SE-SAIS) ... " << flush;
+		cout << "(1/3) Building BWT ";
+		if(sais) cout << "(SE-SAIS) ... " << flush;
+		else cout << "(DIVSUFSORT) ... " << flush;
 
 		//build run-length encoded BWT
 		{
@@ -692,7 +696,7 @@ private:
 
 
 	/*
-	 * builds BWT of input string using SE_SAIS algorithm
+	 * builds BWT of input string
 	 * uses 0x1 character as terminator
 	 *
 	 */
@@ -714,7 +718,7 @@ private:
 
 	    store_to_cache(text, conf::KEY_TEXT, cc);
 
-	    construct_config::byte_algo_sa = SE_SAIS;
+	    construct_config::byte_algo_sa = sais ? SE_SAIS : LIBDIVSUFSORT;
 	    construct_sa<8>(cc);
 
 	    //now build BWT from SA
@@ -788,6 +792,8 @@ private:
 	}
 
 	static const uchar TERMINATOR = 1;
+
+	bool sais = true;
 
 	/*
 	 * sparse RLBWT: r (log sigma + (1+epsilon) * log (n/r)) (1+o(1)) bits
