@@ -5,20 +5,59 @@
 using namespace ri;
 using namespace std;
 
+string check = string();//check occurrences on this text
+
 void help(){
 	cout << "ri-locate: locate all occurrences of the input patterns." << endl << endl;
 
-	cout << "Usage: ri-locate <index> <patterns>" << endl;
+	cout << "Usage: ri-locate [options] <index> <patterns>" << endl;
+	cout << "   -c <text>    check correctness of each pattern occurrence on this text file (must be the same indexed)" << endl;
 	cout << "   <index>      index file (with extension .ri)" << endl;
 	cout << "   <patterns>   file in pizza&chili format containing the patterns." << endl;
 	exit(0);
 }
+
+void parse_args(char** argv, int argc, int &ptr){
+
+	assert(ptr<argc);
+
+	string s(argv[ptr]);
+	ptr++;
+
+	if(s.compare("-c")==0){
+
+		if(ptr>=argc-1){
+			cout << "Error: missing parameter after -c option." << endl;
+			help();
+		}
+
+		check = string(argv[ptr]);
+		ptr++;
+
+	}
+
+}
+
 
 void search(string idx_basename, string patterns, bool optimize = true){
 
     using std::chrono::high_resolution_clock;
     using std::chrono::duration_cast;
     using std::chrono::duration;
+
+    string text;
+    bool c = false;
+
+    if(check.compare(string()) != 0){
+
+    	c = true;
+
+		ifstream ifs1(check);
+		stringstream ss;
+		ss << ifs1.rdbuf();//read the file
+		text = ss.str();
+
+    }
 
     auto t1 = high_resolution_clock::now();
 
@@ -67,10 +106,27 @@ void search(string idx_basename, string patterns, bool optimize = true){
 
 		occ_tot += OCC.size();
 
-		/*cout << "done." << endl;
-		cout << "OCC = ";
-		for(auto o:OCC) cout << o << " ";
-		cout << endl;*/
+		if(c){//check occurrences
+
+			if(OCC.size() != idx.occ(p)){
+
+				cout << "Error: wrong number of located occurrences: " << OCC.size() << "/" << idx.occ(p) << endl;
+				exit(0);
+
+			}
+
+			for(auto o:OCC){
+
+				if(text.substr(o,p.size()).compare(p) != 0){
+
+					cout << "Error: wrong occurrence: " << o << endl;
+					exit(0);
+
+				}
+
+			}
+
+		}
 
 	}
 
@@ -100,10 +156,15 @@ void search(string idx_basename, string patterns, bool optimize = true){
 
 int main(int argc, char** argv){
 
-	if(argc != 3)
+	if(argc < 3)
 		help();
 
+	int ptr = 1;
+
+	while(ptr<argc-2)
+		parse_args(argv, argc, ptr);
+
 	cout << "Loading r-index" << endl;
-	search(argv[1],argv[2]);
+	search(argv[ptr],argv[ptr+1]);
 
 }
