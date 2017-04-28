@@ -15,7 +15,8 @@ void help(){
 	cout << "ri-build: builds the r-index. Extension .ri is automatically added to output index file" << endl << endl;
 	cout << "Usage: ri-build [options] <input_file_name>" << endl;
 	cout << "   -o <basename>        use 'basename' as prefix for all index files. Default: basename is the specified input_file_name"<<endl;
-	cout << "   -divsufsort          use divsufsort algorithm to build the BWT (fast, memory consuming). By default, SE-SAIS is used (slower, 4n bytes or RAM)"<<endl;
+	cout << "   -divsufsort          use divsufsort algorithm to build the BWT (fast, 7n Bytes of RAM). By default,"<<endl;
+	cout << "                        SE-SAIS is used (about 4 time slower than divsufsort, 4n Bytes of RAM)."<<endl;
 	cout << "   <input_file_name>    input text file." << endl;
 	exit(0);
 }
