@@ -739,6 +739,11 @@ private:
 
 		}
 
+		buckets_U_rank = bit_vector::rank_1_type(&buckets_U);
+		partition_U_select = bit_vector::select_1_type(partition_U);
+		buckets_D_rank = bit_vector::rank_1_type(&buckets_D);
+		partition_D_select = bit_vector::select_1_type(partition_D);
+
 		return bwt_s;
 
 	}
