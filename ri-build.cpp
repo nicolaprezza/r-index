@@ -1,7 +1,6 @@
 #include <iostream>
-#include "r_index.hpp"
 #include "utils.hpp"
-#include <permutation.hpp>
+#include "internal/r_index_s.hpp"
 
 using namespace ri;
 using namespace std;
@@ -91,7 +90,7 @@ int main(int argc, char** argv){
 
 	}
 
-	auto idx = r_index(input,sais);
+	auto idx = r_index_s(input,sais);
 	idx.save_to_file(out_basename);
 
 	auto t2 = high_resolution_clock::now();

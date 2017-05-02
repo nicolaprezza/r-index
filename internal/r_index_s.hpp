@@ -1,15 +1,15 @@
 /*
- * r_index.hpp
+ * r_index_s.hpp
  *
  *  Created on: Apr 13, 2017
  *      Author: nico
  *
- * Main class implementing the r-index
+ * Small version of the r-index: O(r) words of space, O(log(n/r)) locate time per occurrence
  *
  */
 
-#ifndef R_INDEX_H_
-#define R_INDEX_H_
+#ifndef R_INDEX_S_H_
+#define R_INDEX_S_H_
 
 #include <definitions.hpp>
 #include <rle_string.hpp>
@@ -20,23 +20,28 @@ using namespace sdsl;
 
 namespace ri{
 
-class r_index{
+class r_index_s{
 
 public:
 
 	using rle_string_t	= rle_string_sd;	//run-length encoded string
 	using triple = std::tuple<range_t, ulint, ulint>;
 
-	r_index(){}
+	r_index_s(){}
 
 	/*
 	 * Build index
 	 */
-	r_index(string &input, bool sais = true){
+	r_index_s(string &input, bool sais = true){
 
 		this->sais = sais;
 
-		assert(not contains_reserved_chars(input));
+		if(contains_reserved_chars(input)){
+
+			cout << "Error: input string contains one of the reserved characters 0x0, 0x1" << endl;
+			exit(1);
+
+		}
 
 		cout << "Text length = " << input.size() << endl << endl;
 
@@ -493,10 +498,6 @@ public:
 		return TERMINATOR;
 	}
 
-	string get_extension(){
-		return string(".ri");
-	}
-
 	ulint print_space(){
 
 		cout << "Number of runs = " << bwt.number_of_runs() << endl<<endl;
@@ -843,4 +844,4 @@ private:
 
 }
 
-#endif /* R_INDEX_H_ */
+#endif /* R_INDEX_S_H_ */

@@ -43,8 +43,3 @@ add_executable(ri-space ri-space.cpp)
 TARGET_LINK_LIBRARIES(ri-space sdsl)
 TARGET_LINK_LIBRARIES(ri-space divsufsort)
 TARGET_LINK_LIBRARIES(ri-space divsufsort64)
-
-add_executable(tests tests.cpp)
-TARGET_LINK_LIBRARIES(tests sdsl)
-TARGET_LINK_LIBRARIES(tests divsufsort)
-TARGET_LINK_LIBRARIES(tests divsufsort64)

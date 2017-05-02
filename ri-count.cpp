@@ -1,5 +1,7 @@
 #include <iostream>
-#include "internal/r_index.hpp"
+
+#include "internal/r_index_f.hpp"
+#include "internal/r_index_s.hpp"
 #include "internal/utils.hpp"
 
 using namespace ri;
@@ -22,7 +24,9 @@ void search(string idx_basename, string patterns){
 
     auto t1 = high_resolution_clock::now();
 
-    r_index idx;
+    r_index_f id;
+
+    r_index_s idx;
 
 	idx.load_from_file(idx_basename);
 

@@ -85,7 +85,7 @@ public:
 	}
 
 	/*
-	 * argument: integer i>0
+	 * argument: integer i>=0
 	 * returns: position of the i-th one in the bitvector. i starts from 0!
 	 */
 	ulint select(ulint i){
