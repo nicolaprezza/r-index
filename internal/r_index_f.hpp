@@ -233,14 +233,40 @@ public:
 
 	}
 
+
 	/*
-	 * iterator locate(string &P){
+	 * input:
 	 *
-	 * 	return iterator to iterate over all occurrences without storing them
-	 * 	in memory
+	 * - position j on the text corresponding to some
+	 *   position q on the F-column of the BWT (i.e. SA[q]=j)
+
+	 * - number t <= k of SA positions to be fetched
 	 *
-	 * }
+	 * - vector pos to be filled
+	 *
+	 * - position start in vector pos
+	 *
+	 * behavior:
+	 *
+	 * stores in pos[start, ..., start + t -1] the samples SA[q+1], ..., SA[q+t-1].
+	 *
+	 * warning: failed assertion if q+t-1 >= n (i.e. suffix array size)
+	 *
 	 */
+	void next_t_SA(ulint j, ulint t, vector<ulint> & pos, ulint start){
+
+		//find down-sampled position that precedes j
+		ulint pred = predecessor_D(j);
+
+		ulint first_sample = SSA[pred];
+
+		auto delta = first_sample < j ? j - first_sample : (j+n) - first_sample;
+
+		assert(first_sample + t + 1 < SSA.size());
+
+		for(ulint i=0;i<t;++i) pos[start+i] = (SSA[pred+i+1]+delta) % n;
+
+	}
 
 	/*
 	 * locate all occurrences of P and return them in an array
@@ -294,7 +320,32 @@ public:
 
 		w_bytes += bwt.serialize(out);
 
-		//TODO
+		out.write((char*)&k,sizeof(k));
+		out.write((char*)&r,sizeof(r));
+		out.write((char*)&n,sizeof(n));
+		out.write((char*)&logn,sizeof(logn));
+		out.write((char*)&logU,sizeof(logU));
+		out.write((char*)&logD,sizeof(logD));
+
+		w_bytes += sizeof(ulint)*6;
+
+		w_bytes +=  SSA.serialize(out);
+
+		w_bytes +=  U.serialize(out);
+		w_bytes +=  D.serialize(out);
+
+		w_bytes +=  buckets_U.serialize(out);
+		w_bytes +=  buckets_U_rank.serialize(out);
+		w_bytes +=  partition_U.serialize(out);
+		w_bytes +=  partition_U_select.serialize(out);
+
+		w_bytes +=  buckets_D.serialize(out);
+		w_bytes +=  buckets_D_rank.serialize(out);
+		w_bytes +=  partition_D.serialize(out);
+		w_bytes +=  partition_D_select.serialize(out);
+
+		w_bytes +=  border_sample.serialize(out);
+		w_bytes +=  border_sample_select.serialize(out);
 
 		return w_bytes;
 
@@ -312,7 +363,30 @@ public:
 
 		bwt.load(in);
 
-		//TODO
+		in.read((char*)&k,sizeof(k));
+		in.read((char*)&r,sizeof(r));
+		in.read((char*)&n,sizeof(n));
+		in.read((char*)&logn,sizeof(logn));
+		in.read((char*)&logU,sizeof(logU));
+		in.read((char*)&logD,sizeof(logD));
+
+		SSA.load(in);
+
+		U.load(in);
+		D.load(in);
+
+		buckets_U.load(in);
+		buckets_U_rank.load(in);
+		partition_U.load(in);
+		partition_U_select.load(in);
+
+		buckets_D.load(in);
+		buckets_D_rank.load(in);
+		partition_D.load(in);
+		partition_D_select.load(in);
+
+		border_sample.load(in);
+		border_sample_select.load(in);
 
 	}
 
@@ -383,7 +457,7 @@ private:
 			assert(i<SSA->size());
 			assert(j<SSA->size());
 
-			return (*SSA)[i] < (*SSA)[j];
+			return ulint((*SSA)[i]) < ulint((*SSA)[j]);
 
 		}
 
@@ -401,7 +475,85 @@ private:
 	 */
 	triple count_and_get_occ(string &P){
 
-		//TODO
+		//coordinates of an occurrence of current pattern suffix
+		ulint j = 0;
+		ulint k = 0;
+
+		range_t range = full_range();
+		range_t range1;
+
+		ulint m = P.size();
+
+		for(ulint i=0;i<m and range.second>=range.first;++i){
+
+			uchar c = P[m-i-1];
+
+			range1 = LF(range,c);
+
+			//if suffix can be left-extended with char
+			if(range1 != range_t(1,0)){
+
+				if(is_unary(range)){
+
+					assert(i>0);
+
+					assert(j>0);
+
+					//j-1 is an occurrence of the new pattern suffix
+					j = j-1;
+
+					//k is the new SA position corresponding to j
+					k = LF(k);
+
+				}else{
+
+					//find a brand new occurrence
+					k = get_sampled_position(range, c); //careful: k is an L-position (need LF later)
+					j = k==0 ? 0 : bwt_sample(k);
+
+					//map from L to F column
+					k = LF(k);
+
+				}
+
+			}
+
+			range = range1;
+
+		}
+
+		return triple(range, j, k);
+
+	}
+
+	/*
+	 * input: position k on the BWT
+	 *
+	 * k must be first or last in its run AND
+	 * not the first or last BWT positions
+	 *
+	 * return: text position j associated with BWT position k
+	 *
+	 */
+	ulint bwt_sample(ulint k){
+
+		assert(k>0);
+		assert(k<bwt.size()-1);
+		assert(bwt[k] != bwt[k-1] or bwt[k] != bwt[k+1]);
+
+		//is k the last position of its run? (recall that we sample down positions)
+		bool down = bwt[k] != bwt[k+1];
+
+		//run of BWT position k or k-1 (depending on who is a down position)
+		ulint run = bwt.run_of_position(down ? k : k-1);
+
+		//locate down position in SSA
+		ulint ssa_idx = border_sample_select(run+1);
+
+		//if k is a down position, ssa_idx is index of the sample.
+		//Otherwise, ssa_idx+1 is the index we are looking for.
+		assert(down or ssa_idx+1 < SSA.size());
+		return SSA[down ? ssa_idx : ssa_idx+1];
 
 	}
 
@@ -740,13 +892,95 @@ private:
 		}
 
 		buckets_U_rank = bit_vector::rank_1_type(&buckets_U);
-		partition_U_select = bit_vector::select_1_type(partition_U);
+		partition_U_select = bit_vector::select_1_type(&partition_U);
 		buckets_D_rank = bit_vector::rank_1_type(&buckets_D);
-		partition_D_select = bit_vector::select_1_type(partition_D);
+		partition_D_select = bit_vector::select_1_type(&partition_D);
 
 		return bwt_s;
 
 	}
+
+	/*
+	 * predecessor j<i of text position i in dictionary U
+	 */
+	ulint predecessor_U(ulint i){
+
+		assert(i<n);
+
+		if(i <= SSA[U[0]]) return SSA[U[U.size()-1]]==n-1 ? n-1 : predecessor_U(n-1); //if position smaller than or equal to minimum in the dictionary return last text position (circular string)
+
+		ulint pref = i >> (logn-logU);
+		assert(pref<buckets_U.size());
+
+		ulint totrank = buckets_U_rank(buckets_U.size());//total 1's in buckets_U
+
+		ulint prev_bucket = buckets_U_rank(pref);
+
+		ulint last_prev_part = 							//last U-position of previous nonempty bucket
+				prev_bucket == totrank ?
+				U.size()-1 :
+				partition_U_select(prev_bucket+1)-1;
+
+		ulint first = buckets_U[pref] ? last_prev_part+1 : 0; //first U-position of this bucket, if it is not empty (0 otherwise)
+
+		ulint last = not buckets_U[pref] ? 0 :
+						prev_bucket+1 == totrank ?
+						U.size() :
+						partition_U_select(prev_bucket+2); //position following last U-position of this bucket, if it is not empty (0 otherwise)
+
+		ulint pred_idx =	(not buckets_U[pref]) || i <= SSA[U[partition_U_select(prev_bucket+1)]] ? 				//if bucket empty or i is <= than minimum el in bucket
+								last_prev_part :																	//then return last el of previous nonempty bucket
+								(std::lower_bound(U.begin()+first, U.begin()+last,i,pred_compare(&SSA))-U.begin())-1;	//else return last element < i
+
+		assert(pred_idx < U.size());
+		assert(SSA[U[pred_idx]] < i);
+		assert(pred_idx == U.size()-1 || SSA[U[pred_idx+1]] >= i);
+
+		return U[pred_idx];
+
+	}
+
+	/*
+	 * predecessor j<i of text position i in dictionary D
+	 */
+	ulint predecessor_D(ulint i){
+
+		assert(i<n);
+
+		if(i <= SSA[D[0]]) return SSA[D[D.size()-1]]==n-1 ? n-1 : predecessor_D(n-1); //if position smaller than or equal to minimum in the dictionary return last text position (circular string)
+
+		ulint pref = i >> (logn-logD);
+		assert(pref<buckets_D.size());
+
+		ulint totrank = buckets_D_rank(buckets_D.size());//total 1's in buckets_D
+
+		ulint prev_bucket = buckets_D_rank(pref);
+
+		ulint last_prev_part = 							//last D-position of previous nonempty bucket
+				prev_bucket == totrank ?
+				D.size()-1 :
+				partition_D_select(prev_bucket+1)-1;
+
+		ulint first = buckets_D[pref] ? last_prev_part+1 : 0; //first D-position of this bucket, if it is not empty (0 otherwise)
+
+		ulint last = not buckets_D[pref] ? 0 :
+						prev_bucket+1 == totrank ?
+						D.size() :
+						partition_D_select(prev_bucket+2); //position following last D-position of this bucket, if it is not empty (0 otherwise)
+
+		ulint pred_idx =	(not buckets_D[pref]) || i <= SSA[D[partition_D_select(prev_bucket+1)]] ? 				//if bucket empty or i is <= than minimum el in bucket
+								last_prev_part :																	//then return last el of previous nonempty bucket
+								(std::lower_bound(D.begin()+first, D.begin()+last,i,pred_compare(&SSA))-D.begin())-1;	//else return last element < i
+
+		assert(pred_idx < D.size());
+		assert(SSA[D[pred_idx]] < i);
+		assert(pred_idx == D.size()-1 || SSA[D[pred_idx+1]] >= i);
+
+		return D[pred_idx];
+
+	}
+
+
 
 	static bool contains_reserved_chars(string &s){
 
