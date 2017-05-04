@@ -37,10 +37,10 @@ public:
 	 * - if sais = true, SE-SAIS is used to build BWT. Otherwise, DIVSUFSORT is used
 	 *
 	 */
-	r_index_f(string &input, ulint k = 0, bool sais = true){
+	r_index_f(string &input, ulint sa_rate = 0, bool sais = true){
 
 		this->sais = sais;
-		this->k = k;
+		this->sa_rate = sa_rate;
 
 		if(contains_reserved_chars(input)){
 
@@ -51,18 +51,14 @@ public:
 
 		cout << "Text length = " << input.size() << endl << endl;
 
-		cout << "(1/3) Building BWT ";
-		if(sais) cout << "(SE-SAIS) ... " << flush;
-		else cout << "(DIVSUFSORT) ... " << flush;
-
 		//build run-length encoded BWT
 		{
 
 			string bwt_s = build_structures(input);
 
-			k = this->k;
+			sa_rate = this->sa_rate;
 
-			cout << "done.\n(2/3) RLE encoding BWT ... " << flush;
+			cout << "done.\n(3/3) RLE encoding BWT ... " << flush;
 
 			bwt = rle_string_t(bwt_s);
 
@@ -95,7 +91,7 @@ public:
 		cout << "Rate n/r = " << double(bwt.size())/r << endl;
 		cout << "log2(r) = " << log2(double(r)) << endl;
 		cout << "log2(n/r) = " << log2(double(bwt.size())/r) << endl;
-		cout << "Storing " << k << " SA samples before and after each BWT run break" << endl << endl;
+		cout << "Storing " << sa_rate << " SA samples before and after each BWT run break" << endl << endl;
 
 
 
@@ -262,9 +258,47 @@ public:
 
 		auto delta = first_sample < j ? j - first_sample : (j+n) - first_sample;
 
-		assert(first_sample + t + 1 < SSA.size());
+		assert(pred + t < SSA.size());
+		assert(start+t-1<pos.size());
+		assert((SSA[pred]+delta) % n == j);
 
 		for(ulint i=0;i<t;++i) pos[start+i] = (SSA[pred+i+1]+delta) % n;
+
+	}
+
+	/*
+	 * input:
+	 *
+	 * - position j on the text corresponding to some
+	 *   position q on the F-column of the BWT (i.e. SA[q]=j)
+
+	 * - number t <= k of SA positions to be fetched
+	 *
+	 * - vector pos to be filled
+	 *
+	 * - position start in vector pos
+	 *
+	 * behavior:
+	 *
+	 * stores in pos[start, ..., start - (t + 1)] the samples SA[q-1], ..., SA[q-t].
+	 *
+	 * warning: failed assertion if t > q (we go beyond being of SA)
+	 *
+	 */
+	void prev_t_SA(ulint j, ulint t, vector<ulint> & pos, ulint start){
+
+		//find up-sampled position that precedes j
+		ulint pred = predecessor_U(j);
+
+		ulint first_sample = SSA[pred];
+
+		auto delta = first_sample < j ? j - first_sample : (j+n) - first_sample;
+
+		assert(t <= pred);
+		assert(t-1 <= start);
+		assert((SSA[pred]+delta) % n == j);
+
+		for(ulint i=0;i<t;++i) pos[start-i] = (SSA[pred-(i+1)]+delta) % n;
 
 	}
 
@@ -274,9 +308,63 @@ public:
 	 */
 	vector<ulint> locate_all(string& P){
 
-		vector<ulint> OCC;
+		auto loc = count_and_get_occ(P);
 
-		//TODO
+		//range
+		range_t rn = std::get<0>(loc);
+		ulint l = rn.first;
+		ulint r = rn.second;
+
+		ulint occ = r<l ? 0 : (r-l)+1;
+
+		if(occ==0) return vector<ulint>();
+
+		ulint j = std::get<1>(loc);//text pos
+		ulint k = std::get<2>(loc);//BWT pos
+
+		assert(k>= l and k<= r);
+
+		vector<ulint> OCC(occ);
+
+		//store first sample
+		OCC[k-l] = j;
+
+		ulint k_1 = k;
+
+		//extract forward
+		while(k_1 < r){
+
+			//fetch t samples
+			assert(k_1<=r);
+			ulint t = std::min(sa_rate,r-k_1);
+
+			//in OCC[k_1-l] we have a sample. Find the next t samples
+			next_t_SA(OCC[k_1-l], t, OCC, (k_1+1)-l);
+
+			k_1 += t;
+
+		}
+
+
+		k_1 = k;
+
+		//extract backward
+		while(k_1 > l){
+
+			//fetch t samples
+			assert(l<=k_1);
+			ulint t = std::min(sa_rate,k_1-l);
+
+			//in OCC[k_1-l] we have a sample. Find the previous t samples
+			assert(k_1>0);
+			assert(l<=k_1-1);
+			prev_t_SA(OCC[k_1-l], t, OCC, (k_1-1)-l);
+
+			assert(t<=k_1);
+			k_1 -= t;
+
+		}
+
 		return OCC;
 
 	}
@@ -320,7 +408,7 @@ public:
 
 		w_bytes += bwt.serialize(out);
 
-		out.write((char*)&k,sizeof(k));
+		out.write((char*)&sa_rate,sizeof(sa_rate));
 		out.write((char*)&r,sizeof(r));
 		out.write((char*)&n,sizeof(n));
 		out.write((char*)&logn,sizeof(logn));
@@ -335,17 +423,12 @@ public:
 		w_bytes +=  D.serialize(out);
 
 		w_bytes +=  buckets_U.serialize(out);
-		w_bytes +=  buckets_U_rank.serialize(out);
 		w_bytes +=  partition_U.serialize(out);
-		w_bytes +=  partition_U_select.serialize(out);
 
 		w_bytes +=  buckets_D.serialize(out);
-		w_bytes +=  buckets_D_rank.serialize(out);
 		w_bytes +=  partition_D.serialize(out);
-		w_bytes +=  partition_D_select.serialize(out);
 
 		w_bytes +=  border_sample.serialize(out);
-		w_bytes +=  border_sample_select.serialize(out);
 
 		return w_bytes;
 
@@ -363,7 +446,7 @@ public:
 
 		bwt.load(in);
 
-		in.read((char*)&k,sizeof(k));
+		in.read((char*)&sa_rate,sizeof(sa_rate));
 		in.read((char*)&r,sizeof(r));
 		in.read((char*)&n,sizeof(n));
 		in.read((char*)&logn,sizeof(logn));
@@ -376,17 +459,17 @@ public:
 		D.load(in);
 
 		buckets_U.load(in);
-		buckets_U_rank.load(in);
+		buckets_U_rank = bit_vector::rank_1_type(&buckets_U);
 		partition_U.load(in);
-		partition_U_select.load(in);
+		partition_U_select = bit_vector::select_1_type(&partition_U);
 
 		buckets_D.load(in);
-		buckets_D_rank.load(in);
+		buckets_D_rank = bit_vector::rank_1_type(&buckets_D);
 		partition_D.load(in);
-		partition_D_select.load(in);
+		partition_D_select = bit_vector::select_1_type(&partition_D);
 
 		border_sample.load(in);
-		border_sample_select.load(in);
+		border_sample_select = bit_vector::select_1_type(&border_sample);
 
 	}
 
@@ -442,11 +525,11 @@ public:
 
 private:
 
-	class pred_compare{
+	class sort_compare{
 
 	public:
 
-		pred_compare(int_vector<> * SSA){
+		sort_compare(int_vector<> * SSA){
 
 			this->SSA=SSA;
 
@@ -458,6 +541,31 @@ private:
 			assert(j<SSA->size());
 
 			return ulint((*SSA)[i]) < ulint((*SSA)[j]);
+
+		}
+
+	private:
+
+		int_vector<> * SSA;
+
+	};
+
+	class pred_compare{
+
+	public:
+
+		pred_compare(int_vector<> * SSA){
+
+			this->SSA=SSA;
+
+		}
+
+		//i: position in SSA. j = position on text
+		bool operator()(ulint i, ulint j){
+
+			assert(i<SSA->size());
+
+			return ulint((*SSA)[i] < j);
 
 		}
 
@@ -507,8 +615,10 @@ private:
 
 				}else{
 
+
 					//find a brand new occurrence
 					k = get_sampled_position(range, c); //careful: k is an L-position (need LF later)
+
 					j = k==0 ? 0 : bwt_sample(k);
 
 					//map from L to F column
@@ -548,11 +658,13 @@ private:
 		ulint run = bwt.run_of_position(down ? k : k-1);
 
 		//locate down position in SSA
+
 		ulint ssa_idx = border_sample_select(run+1);
 
 		//if k is a down position, ssa_idx is index of the sample.
 		//Otherwise, ssa_idx+1 is the index we are looking for.
 		assert(down or ssa_idx+1 < SSA.size());
+
 		return SSA[down ? ssa_idx : ssa_idx+1];
 
 	}
@@ -637,6 +749,10 @@ private:
 	 */
 	string build_structures(string &s){
 
+		cout << "(1/3) Building BWT ";
+		if(sais) cout << "(SE-SAIS) ... " << flush;
+		else cout << "(DIVSUFSORT) ... " << flush;
+
 		string bwt_s;
 
 	    cache_config cc;
@@ -682,11 +798,13 @@ private:
 		assert(n>0);
 
 		//if sampling factor = 0, set it to log2(n/r)
-		if(k==0){
+		if(sa_rate==0){
 
-			k = bitsize(n/r);
+			sa_rate = bitsize(n/r);
 
 		}
+
+		cout << "done.\n(2/3) Building predecessors and sampling SA ... " << flush;
 
 	    //mark up ad down sampled BWT positions
 	    auto sampled_position_up = vector<bool>(sa.size());
@@ -700,7 +818,7 @@ private:
 
 				//sample k positions backward (including i). Stop as soon as an already marked position is found
 				ulint j = 0;
-				while(i>=j && not sampled_position_down[i-j] && j<k){
+				while(i>=j && not sampled_position_down[i-j] && j<sa_rate){
 
 					sampled_position_down[i-j] = true;
 					j++;
@@ -719,7 +837,7 @@ private:
 
 				//sample k positions forward (including i). Stop as soon as an already marked position is found
 				ulint j = 0;
-				while(i+j<n && not sampled_position_up[i+j] && j<k){
+				while(i+j<n && not sampled_position_up[i+j] && j<sa_rate){
 
 					sampled_position_up[i+j] = true;
 					j++;
@@ -814,8 +932,15 @@ private:
 		}
 
 		//sort U and D in text order
-		std::sort(D.begin(), D.end(), pred_compare(&SSA));
-		std::sort(U.begin(), U.end(), pred_compare(&SSA));
+		std::sort(D.begin(), D.end(), sort_compare(&SSA));
+		std::sort(U.begin(), U.end(), sort_compare(&SSA));
+
+		for(ulint kk=1;kk<U.size();++kk){
+			assert(SSA[U[kk-1]] < SSA[U[kk]]);
+		}
+		for(ulint kk=1;kk<D.size();++kk){
+			assert(SSA[D[kk-1]] < SSA[D[kk]]);
+		}
 
 		//build suport for Elias-Fano-like predecessor queries
 
@@ -909,6 +1034,22 @@ private:
 
 		if(i <= SSA[U[0]]) return SSA[U[U.size()-1]]==n-1 ? n-1 : predecessor_U(n-1); //if position smaller than or equal to minimum in the dictionary return last text position (circular string)
 
+		ulint p_i = (std::lower_bound(U.begin(), U.end(),i,pred_compare(&SSA))-U.begin())-1;
+
+		assert(p_i < U.size());
+		assert(SSA[U[p_i]] < i);
+		assert(p_i == U.size()-1 || SSA[U[p_i+1]] >= i);
+
+		return U[p_i];
+
+
+
+
+
+
+
+
+
 		ulint pref = i >> (logn-logU);
 		assert(pref<buckets_U.size());
 
@@ -932,6 +1073,8 @@ private:
 								last_prev_part :																	//then return last el of previous nonempty bucket
 								(std::lower_bound(U.begin()+first, U.begin()+last,i,pred_compare(&SSA))-U.begin())-1;	//else return last element < i
 
+		cout << "** pred: " << SSA[U[pred_idx]] << " " << i << " " << SSA[U[pred_idx+1]] << endl;
+
 		assert(pred_idx < U.size());
 		assert(SSA[U[pred_idx]] < i);
 		assert(pred_idx == U.size()-1 || SSA[U[pred_idx+1]] >= i);
@@ -948,6 +1091,21 @@ private:
 		assert(i<n);
 
 		if(i <= SSA[D[0]]) return SSA[D[D.size()-1]]==n-1 ? n-1 : predecessor_D(n-1); //if position smaller than or equal to minimum in the dictionary return last text position (circular string)
+
+		ulint p_i = (std::lower_bound(D.begin(), D.end(),i,pred_compare(&SSA))-D.begin())-1;
+
+
+		assert(p_i < D.size());
+		assert(SSA[D[p_i]] < i);
+		assert(p_i == D.size()-1 || SSA[D[p_i+1]] >= i);
+
+		return D[p_i];
+
+
+
+
+
+
 
 		ulint pref = i >> (logn-logD);
 		assert(pref<buckets_D.size());
@@ -971,6 +1129,8 @@ private:
 		ulint pred_idx =	(not buckets_D[pref]) || i <= SSA[D[partition_D_select(prev_bucket+1)]] ? 				//if bucket empty or i is <= than minimum el in bucket
 								last_prev_part :																	//then return last el of previous nonempty bucket
 								(std::lower_bound(D.begin()+first, D.begin()+last,i,pred_compare(&SSA))-D.begin())-1;	//else return last element < i
+
+		cout << "** pred: " << SSA[D[pred_idx]] << " " << i << " " << SSA[D[pred_idx+1]] << endl;
 
 		assert(pred_idx < D.size());
 		assert(SSA[D[pred_idx]] < i);
@@ -1006,7 +1166,7 @@ private:
 	rle_string_t bwt;
 	ulint terminator_position = 0;
 
-	ulint k = 0;//sampling factor
+	ulint sa_rate = 0;//sampling factor
 	ulint r = 0;//number of BWT runs
 	ulint n = 0;//BWT size
 	ulint logn = 0;//number of bits required to store a text position
