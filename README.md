@@ -1,7 +1,7 @@
 r-index: the run-length BWT index
 ===============
 Author: Nicola Prezza (nicola.prezza@gmail.com)
-Joint work with Travis Gagie
+Joint work with Travis Gagie and Gonzalo Navarro
 
 ### Brief description
 
@@ -49,10 +49,12 @@ Run
 
 > ri-count index.ri patterns
 
-to count number of occurrences of the patterns, where <patterns> is a file containing the patterns in pizza&chili format (http://pizzachili.dcc.uchile.cl/experiments.html)
+to count number of occurrences of the patterns, where <patterns> is a file containing the patterns in pizza&chili format (http://pizzachili.dcc.uchile.cl/experiments.html). To generate pattern files, use the tool http://pizzachili.dcc.uchile.cl/utils/genpatterns.c 
 
 Run
 
 > ri-locate index.ri patterns
 
 to locate all occurrences of the patterns.
+
+Be aware that the above executables are just benchmarking tools: no output is generated (pattern occurrences are deleted after being extracted and not printed to output).
