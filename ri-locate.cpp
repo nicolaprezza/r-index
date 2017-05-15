@@ -1,6 +1,8 @@
 #include <iostream>
 
 #include "internal/r_index_s.hpp"
+#include "internal/r_index_f.hpp"
+
 #include "internal/utils.hpp"
 
 using namespace ri;
@@ -35,12 +37,18 @@ void parse_args(char** argv, int argc, int &ptr){
 		check = string(argv[ptr]);
 		ptr++;
 
+	}else{
+
+		cout << "Error: unknown option " << s << endl;
+		help();
+
 	}
 
 }
 
 
-void search(string idx_basename, string patterns, bool optimize = true){
+template<class idx_t>
+void locate(std::ifstream& in, string patterns){
 
     using std::chrono::high_resolution_clock;
     using std::chrono::duration_cast;
@@ -62,9 +70,9 @@ void search(string idx_basename, string patterns, bool optimize = true){
 
     auto t1 = high_resolution_clock::now();
 
-    r_index_s idx;
+    idx_t idx;
 
-	idx.load_from_file(idx_basename);
+	idx.load(in);
 
 	auto t2 = high_resolution_clock::now();
 
@@ -101,7 +109,7 @@ void search(string idx_basename, string patterns, bool optimize = true){
 			p+=c;
 		}
 
-		///cout << "locating " << idx.occ(p) << " occurrences of "<< p << " ... " << flush;
+		//cout << "locating " << idx.occ(p) << " occurrences of "<< p << " ... " << flush;
 
 		auto OCC = idx.locate_all(p);	//occurrences
 
@@ -165,7 +173,29 @@ int main(int argc, char** argv){
 	while(ptr<argc-2)
 		parse_args(argv, argc, ptr);
 
-	cout << "Loading r-index" << endl;
-	search(argv[ptr],argv[ptr+1]);
+	string idx_file(argv[ptr]);
+	string patt_file(argv[ptr+1]);
+
+	std::ifstream in(idx_file);
+
+	bool fast;
+
+	//fast or small index?
+	in.read((char*)&fast,sizeof(fast));
+
+	if(fast){
+
+		cout << "Loading fast r-index" << endl;
+
+		locate<r_index_f>(in, patt_file);
+
+	}else{
+
+		cout << "Loading small r-index" << endl;
+		locate<r_index_s>(in, patt_file);
+
+	}
+
+	in.close();
 
 }
