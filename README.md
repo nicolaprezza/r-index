@@ -58,3 +58,4 @@ Run
 to locate all occurrences of the patterns.
 
 Be aware that the above executables are just benchmarking tools: no output is generated (pattern occurrences are deleted after being extracted and not printed to output).
+
