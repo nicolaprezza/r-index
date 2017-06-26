@@ -17,10 +17,10 @@ void help(){
 	cout << "ri-build: builds the r-index. Extension .ri is automatically added to output index file" << endl << endl;
 	cout << "Usage: ri-build [options] <input_file_name>" << endl;
 	cout << "   -o <basename>        use 'basename' as prefix for all index files. Default: basename is the specified input_file_name"<<endl;
-	cout << "   -fast                build fast index (O(occ)-time locate, O(r log(n/r)) words of space). By default, "<<endl;
-	cout << "                        small index is built (O(occ*log(n/r))-time locate, O(r) words of space)"<<endl;
-	cout << "   -sa_rate <T>         T>0. if used, build the fast index (see option -fast) storing T SA samples before and after each"<<endl;
-	cout << "                        BWT equal-letter run. O(r*T) words of space, O(occ(log(n/r)/T) + log(n/r))-time locate. "<<endl;
+	//cout << "   -fast                build fast index (O(occ)-time locate, O(r log(n/r)) words of space). By default, "<<endl;
+	//cout << "                        small index is built (O(occ*log(n/r))-time locate, O(r) words of space)"<<endl;
+	//cout << "   -sa_rate <T>         T>0. if used, build the fast index (see option -fast) storing T SA samples before and after each"<<endl;
+	//cout << "                        BWT equal-letter run. O(r*T) words of space, O(occ(log(n/r)/T) + log(n/r))-time locate. "<<endl;
 	cout << "   -divsufsort          use divsufsort algorithm to build the BWT (fast, 7.5n Bytes of RAM). By default,"<<endl;
 	cout << "                        SE-SAIS is used (about 4 time slower than divsufsort, 4n Bytes of RAM)."<<endl;
 	cout << "   <input_file_name>    input text file." << endl;
@@ -48,7 +48,7 @@ void parse_args(char** argv, int argc, int &ptr){
 
 		sais = false;
 
-	}else if(s.compare("-fast")==0){
+	}/*else if(s.compare("-fast")==0){
 
 		fast=true;
 
@@ -64,7 +64,7 @@ void parse_args(char** argv, int argc, int &ptr){
 		ptr++;
 		fast=true;
 
-	}else{
+	}*/else{
 		cout << "Error: unrecognized '" << s << "' option." << endl;
 		help();
 	}
