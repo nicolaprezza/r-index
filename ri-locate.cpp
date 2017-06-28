@@ -48,7 +48,7 @@ void parse_args(char** argv, int argc, int &ptr){
 
 
 template<class idx_t>
-void locate(std::ifstream& in, string patterns){
+void count(std::ifstream& in, string patterns){
 
     using std::chrono::high_resolution_clock;
     using std::chrono::duration_cast;
@@ -187,12 +187,12 @@ int main(int argc, char** argv){
 
 		cout << "Loading fast r-index" << endl;
 
-		locate<r_index_f>(in, patt_file);
+		count<r_index_f>(in, patt_file);
 
 	}else{
 
 		cout << "Loading small r-index" << endl;
-		locate<r_index_s>(in, patt_file);
+		count<r_index_s>(in, patt_file);
 
 	}
 

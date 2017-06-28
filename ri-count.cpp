@@ -1,14 +1,17 @@
 #include <iostream>
 
-#include "internal/r_index_f.hpp"
 #include "internal/r_index_s.hpp"
+#include "internal/r_index_f.hpp"
+
 #include "internal/utils.hpp"
 
 using namespace ri;
 using namespace std;
 
+string check = string();//check occurrences on this text
+
 void help(){
-	cout << "ri-count: count number of occurrences of the input patterns." << endl << endl;
+	cout << "ri-count: number of occurrences of the input patterns." << endl << endl;
 
 	cout << "Usage: ri-count <index> <patterns>" << endl;
 	cout << "   <index>      index file (with extension .ri)" << endl;
@@ -16,19 +19,59 @@ void help(){
 	exit(0);
 }
 
-void search(string idx_basename, string patterns){
+void parse_args(char** argv, int argc, int &ptr){
+
+	assert(ptr<argc);
+
+	string s(argv[ptr]);
+	ptr++;
+
+	/*if(s.compare("-c")==0){
+
+		if(ptr>=argc-1){
+			cout << "Error: missing parameter after -c option." << endl;
+			help();
+		}
+
+		check = string(argv[ptr]);
+		ptr++;
+
+	}else*/{
+
+		cout << "Error: unknown option " << s << endl;
+		help();
+
+	}
+
+}
+
+
+template<class idx_t>
+void count(std::ifstream& in, string patterns){
 
     using std::chrono::high_resolution_clock;
     using std::chrono::duration_cast;
     using std::chrono::duration;
 
+    string text;
+    bool c = false;
+
+    if(check.compare(string()) != 0){
+
+    	c = true;
+
+		ifstream ifs1(check);
+		stringstream ss;
+		ss << ifs1.rdbuf();//read the file
+		text = ss.str();
+
+    }
+
     auto t1 = high_resolution_clock::now();
 
-    r_index_f id;
+    idx_t idx;
 
-    r_index_s idx;
-
-	idx.load_from_file(idx_basename);
+	idx.load(in);
 
 	auto t2 = high_resolution_clock::now();
 
@@ -65,15 +108,7 @@ void search(string idx_basename, string patterns){
 			p+=c;
 		}
 
-		//cout << "locating " << idx.count(p) << " occurrences of "<< p << " ... " << flush;
-
-		auto occ = idx.count(p);	//number of occurrences
-		occ_tot += occ.second - occ.first + 1;
-
-		//cout << "done." << endl;
-
-		//for(auto o:occ) cout << o << " ";
-		//cout << endl;
+		occ_tot += idx.occ(p);
 
 	}
 
@@ -94,8 +129,6 @@ void search(string idx_basename, string patterns){
 	cout << "number of patterns n = " << n << endl;
 	cout << "pattern length m = " << m << endl;
 	cout << "total number of occurrences  occ_t = " << occ_tot << endl;
-	cout << "m * occ_t  = " << occ_tot*m << endl;
-	cout << "n*m + occ_t  = " << n*m+occ_tot << endl << endl;
 
 	cout << "Total time : " << search << " milliseconds" << endl;
 	cout << "Search time : " << (double)search/n << " milliseconds/pattern (total: " << n << " patterns)" << endl;
@@ -105,10 +138,37 @@ void search(string idx_basename, string patterns){
 
 int main(int argc, char** argv){
 
-	if(argc != 3)
+	if(argc < 3)
 		help();
 
-	cout << "Loading s-rlbwt index" << endl;
-	search(argv[1],argv[2]);
+	int ptr = 1;
+
+	while(ptr<argc-2)
+		parse_args(argv, argc, ptr);
+
+	string idx_file(argv[ptr]);
+	string patt_file(argv[ptr+1]);
+
+	std::ifstream in(idx_file);
+
+	bool fast;
+
+	//fast or small index?
+	in.read((char*)&fast,sizeof(fast));
+
+	if(fast){
+
+		cout << "Loading fast r-index" << endl;
+
+		count<r_index_f>(in, patt_file);
+
+	}else{
+
+		cout << "Loading small r-index" << endl;
+		count<r_index_s>(in, patt_file);
+
+	}
+
+	in.close();
 
 }
