@@ -99,9 +99,7 @@ int main(int argc, char** argv){
 	idx_file.append(".ri");
 
 
-	cout << "Building ";
-	if(fast) cout << "fast "; else cout << "small ";
-	cout << "r-index of input file " << input_file << endl;
+	cout << "Building r-index of input file " << input_file << endl;
 	cout << "Index will be saved to " << idx_file << endl;
 
 	string input;
