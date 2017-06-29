@@ -79,9 +79,9 @@ public:
 
 private:
 
-	wt_gmr<> wt;
+	//wt_gmr<> wt;
 
-	//wt_huff<> wt;
+	wt_huff<> wt;
 
 };
 
