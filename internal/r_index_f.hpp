@@ -6,6 +6,8 @@
  *
  * Fast version of the r-index: O(r log (n/r)) words of space, O(1) locate time per occurrence
  *
+ * TODO: code still under development. Does not work yet!
+ *
  */
 
 #ifndef R_INDEX_F_H_
@@ -38,6 +40,9 @@ public:
 	 *
 	 */
 	r_index_f(string &input, ulint sa_rate = 0, bool sais = true){
+
+		cout << "Code still under development. Use r_index_s.hpp" << endl;
+		exit(1);
 
 		this->sais = sais;
 		this->sa_rate = sa_rate;
