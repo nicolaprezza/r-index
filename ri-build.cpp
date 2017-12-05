@@ -1,7 +1,8 @@
 #include <iostream>
+
+#include "internal/r_index.hpp"
 #include "utils.hpp"
-#include "internal/r_index_s.hpp"
-#include "internal/r_index_f.hpp"
+#include "internal/r_index.hpp"
 
 using namespace ri;
 using namespace std;
@@ -120,25 +121,14 @@ int main(int argc, char** argv){
 	//save flag storing whether index is fast or small
 	out.write((char*)&fast,sizeof(fast));
 
-	if(fast){
 
-		auto idx = r_index_f(input,T,sais);
-		idx.serialize(out);
+	auto idx = r_index(input,sais);
+	idx.serialize(out);
 
-		auto t2 = high_resolution_clock::now();
-		ulint total = duration_cast<duration<double, std::ratio<1>>>(t2 - t1).count();
-		cout << "Build time : " << get_time(total) << endl;
+	auto t2 = high_resolution_clock::now();
+	ulint total = duration_cast<duration<double, std::ratio<1>>>(t2 - t1).count();
+	cout << "Build time : " << get_time(total) << endl;
 
-	}else{
-
-		auto idx = r_index_s(input,sais);
-		idx.serialize(out);
-
-		auto t2 = high_resolution_clock::now();
-		ulint total = duration_cast<duration<double, std::ratio<1>>>(t2 - t1).count();
-		cout << "Build time : " << get_time(total) << endl;
-
-	}
 
 	out.close();
 

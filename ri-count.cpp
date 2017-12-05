@@ -1,7 +1,6 @@
 #include <iostream>
 
-#include "internal/r_index_s.hpp"
-#include "internal/r_index_f.hpp"
+#include "internal/r_index.hpp"
 
 #include "internal/utils.hpp"
 
@@ -156,18 +155,8 @@ int main(int argc, char** argv){
 	//fast or small index?
 	in.read((char*)&fast,sizeof(fast));
 
-	if(fast){
-
-		cout << "Loading fast r-index" << endl;
-
-		count<r_index_f>(in, patt_file);
-
-	}else{
-
-		cout << "Loading small r-index" << endl;
-		count<r_index_s>(in, patt_file);
-
-	}
+	cout << "Loading r-index" << endl;
+	count<r_index>(in, patt_file);
 
 	in.close();
 

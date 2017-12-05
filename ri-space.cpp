@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "internal/r_index_s.hpp"
+#include "internal/r_index.hpp"
 #include "internal/utils.hpp"
 
 using namespace ri;
@@ -19,12 +19,12 @@ int main(int argc, char** argv){
 	if(argc != 2)
 		help();
 
-	r_index_s idx;
+	r_index idx;
 	idx.load_from_file(argv[1]);
 
 	auto space = idx.print_space();
 
-	cout << "\nTOT s-rlbwt space: " << space << " Bytes" <<endl;
+	cout << "\nTOT space: " << space << " Bytes" <<endl;
 
 
 }

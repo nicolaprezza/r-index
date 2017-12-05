@@ -1,5 +1,5 @@
 /*
- * r_index_s.hpp
+ * r_index.hpp
  *
  *  Created on: Apr 13, 2017
  *      Author: nico
@@ -20,19 +20,19 @@ using namespace sdsl;
 
 namespace ri{
 
-class r_index_s{
+class r_index{
 
 public:
 
 	using rle_string_t	= rle_string_sd;	//run-length encoded string
 	using triple = std::tuple<range_t, ulint, ulint>;
 
-	r_index_s(){}
+	r_index(){}
 
 	/*
 	 * Build index
 	 */
-	r_index_s(string &input, bool sais = true){
+	r_index(string &input, bool sais = true){
 
 		this->sais = sais;
 
