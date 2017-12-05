@@ -3,6 +3,10 @@ r-index: the run-length BWT index
 Author: Nicola Prezza (nicola.prezza@gmail.com)
 Joint work with Travis Gagie and Gonzalo Navarro
 
+cite as:
+
+Gagie T, Navarro G, Prezza N. Optimal-time text indexing in BWT-runs bounded space. In Proceedings of the Twenty-Ninth Annual ACM-SIAM Symposium on Discrete Algorithms, SODA 2018, New Orleans, NA, USA, January 7-10 2017.
+
 ### Brief description
 
 The r-index is the first full-text index of size O(r), r being the number of BWT runs of the input text (of size n), supporting fast (almost optimal) locate of pattern occurrences. The r-index employs a novel suffix array sampling of size 2r; in classical FM-indexes, this sampling would result in a locate time of Omega(n/r) per occurrence. The r-index, on the other hand, reduces this time to O(log(n/r)).
