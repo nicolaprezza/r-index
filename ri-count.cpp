@@ -9,10 +9,14 @@ using namespace std;
 
 string check = string();//check occurrences on this text
 
+bool hyb=false;
+
 void help(){
 	cout << "ri-count: number of occurrences of the input patterns." << endl << endl;
 
 	cout << "Usage: ri-count <index> <patterns>" << endl;
+	//cout << "   -h           use hybrid bitvectors instead of elias-fano in both RLBWT and predecessor structures. -h is required "<<endl;
+	//cout << "                if the index was built with -h options enabled."<<endl;
 	cout << "   <index>      index file (with extension .ri)" << endl;
 	cout << "   <patterns>   file in pizza&chili format containing the patterns." << endl;
 	exit(0);
@@ -25,15 +29,9 @@ void parse_args(char** argv, int argc, int &ptr){
 	string s(argv[ptr]);
 	ptr++;
 
-	/*if(s.compare("-c")==0){
+	/*if(s.compare("-h")==0){
 
-		if(ptr>=argc-1){
-			cout << "Error: missing parameter after -c option." << endl;
-			help();
-		}
-
-		check = string(argv[ptr]);
-		ptr++;
+		hyb=true;
 
 	}else*/{
 
@@ -156,7 +154,16 @@ int main(int argc, char** argv){
 	in.read((char*)&fast,sizeof(fast));
 
 	cout << "Loading r-index" << endl;
-	count<r_index>(in, patt_file);
+
+	if(hyb){
+
+		count<r_index<sparse_hyb_vector,rle_string_hyb> >(in, patt_file);
+
+	}else{
+
+		count<r_index<> >(in, patt_file);
+
+	}
 
 	in.close();
 

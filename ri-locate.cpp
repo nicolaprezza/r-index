@@ -8,12 +8,15 @@ using namespace ri;
 using namespace std;
 
 string check = string();//check occurrences on this text
+bool hyb=false;
 
 void help(){
 	cout << "ri-locate: locate all occurrences of the input patterns." << endl << endl;
 
 	cout << "Usage: ri-locate [options] <index> <patterns>" << endl;
 	cout << "   -c <text>    check correctness of each pattern occurrence on this text file (must be the same indexed)" << endl;
+	//cout << "   -h           use hybrid bitvectors instead of elias-fano in both RLBWT and predecessor structures. -h is required "<<endl;
+	//cout << "                if the index was built with -h options enabled."<<endl;
 	cout << "   <index>      index file (with extension .ri)" << endl;
 	cout << "   <patterns>   file in pizza&chili format containing the patterns." << endl;
 	exit(0);
@@ -36,7 +39,11 @@ void parse_args(char** argv, int argc, int &ptr){
 		check = string(argv[ptr]);
 		ptr++;
 
-	}else{
+	}/*else if(s.compare("-h")==0){
+
+		hyb=true;
+
+	}*/else{
 
 		cout << "Error: unknown option " << s << endl;
 		help();
@@ -47,7 +54,7 @@ void parse_args(char** argv, int argc, int &ptr){
 
 
 template<class idx_t>
-void count(std::ifstream& in, string patterns){
+void locate(std::ifstream& in, string patterns){
 
     using std::chrono::high_resolution_clock;
     using std::chrono::duration_cast;
@@ -183,7 +190,16 @@ int main(int argc, char** argv){
 	in.read((char*)&fast,sizeof(fast));
 
 	cout << "Loading r-index" << endl;
-	count<r_index>(in, patt_file);
+
+	if(hyb){
+
+		locate<r_index<sparse_hyb_vector,rle_string_hyb> >(in, patt_file);
+
+	}else{
+
+		locate<r_index<> >(in, patt_file);
+
+	}
 
 	in.close();
 

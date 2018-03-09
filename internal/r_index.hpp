@@ -13,18 +13,21 @@
 
 #include <definitions.hpp>
 #include <rle_string.hpp>
-#include <sparse_sd_vector.hpp>
 #include <permutation.hpp>
+#include "sparse_sd_vector.hpp"
+#include "sparse_hyb_vector.hpp"
 
 using namespace sdsl;
 
 namespace ri{
 
+template	<	class sparse_bv_type = sparse_sd_vector,
+				class rle_string_t = rle_string_sd
+			>
 class r_index{
 
 public:
 
-	using rle_string_t	= rle_string_sd;	//run-length encoded string
 	using triple = std::tuple<range_t, ulint, ulint>;
 
 	r_index(){}
@@ -151,8 +154,8 @@ public:
 		}
 
 		//build gap-encoded bitvectors
-		U = sparse_sd_vector(sampled_up);
-		D = sparse_sd_vector(sampled_down);
+		U = sparse_bv_type(sampled_up);
+		D = sparse_bv_type(sampled_down);
 
 		assert(D.rank(D.size())==r-1);
 		assert(U.rank(U.size())==r-1);
@@ -833,8 +836,8 @@ private:
 	 *
 	 */
 
-	sparse_sd_vector U;
-	sparse_sd_vector D;
+	sparse_bv_type U;
+	sparse_bv_type D;
 
 	/*
 	 * overall: DU, RD, U, and D take r log n bits (plus low-order terms)
