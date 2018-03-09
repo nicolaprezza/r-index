@@ -37,7 +37,7 @@ public:
 
 		bv = bit_vector(b.size());
 
-		for(uint i=0;i<b.size();++i)
+		for(uint64_t i=0;i<b.size();++i)
 			bv[i] = b[i];
 
 		rank1 = bit_vector::rank_1_type(&bv);
