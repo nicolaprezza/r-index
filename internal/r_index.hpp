@@ -539,6 +539,7 @@ private:
 	 * returns <range, j,k>
 	 *
 	 */
+
 	triple count_and_get_occ(string &P){
 
 		//coordinates of an occurrence of current pattern suffix
@@ -546,13 +547,16 @@ private:
 		ulint k = 0;
 
 		range_t range = full_range();
+		range_t prev_range;
 		range_t range1;
 
 		ulint m = P.size();
 
+		uchar c;
+
 		for(ulint i=0;i<m and range.second>=range.first;++i){
 
-			uchar c = P[m-i-1];
+			c = P[m-i-1];
 
 			range1 = LF(range,c);
 
@@ -565,31 +569,43 @@ private:
 
 					assert(j>0);
 
-					//j-1 is an occurrence of the new pattern suffix
 					j = j-1;
 
-					//k is the new SA position corresponding to j
 					k = LF(k);
 
-				}else{
+				}else if (is_unary(range1)) {
 
-					//find a brand new occurrence
 					k = get_sampled_position(range, c); //careful: k is an L-position
+
 					j = k==0 ? 0 : bwt_sample(k);
 
-					//map from L to F column
 					k = LF(k);
 
 				}
 
+			}else{
+
+				return triple(range1, j, k);
+
 			}
+
+			prev_range = range;
 
 			range = range1;
 
 		}
 
-		return triple(range, j, k);
+		if (range != range_t(1,0) && !is_unary(prev_range)) {
 
+			k = get_sampled_position(prev_range, c); //careful: k is an L-position
+
+			j = k==0 ? 0 : bwt_sample(k);
+
+			k = LF(k);
+
+		}
+
+		return triple(range, j, k);
 	}
 
 	/*
