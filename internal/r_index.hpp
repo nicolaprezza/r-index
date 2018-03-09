@@ -602,11 +602,7 @@ private:
 
 		}
 
-		auto t = triple(range, j, k);
-
-		assert(t == old_count_and_get_occ(P));
-
-		return t;
+		return triple(range, j, k);
 	}
 
 	/*
