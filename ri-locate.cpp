@@ -9,6 +9,7 @@ using namespace std;
 
 string check = string();//check occurrences on this text
 bool hyb=false;
+string ofile;
 
 void help(){
 	cout << "ri-locate: locate all occurrences of the input patterns." << endl << endl;
@@ -17,6 +18,7 @@ void help(){
 	cout << "   -c <text>    check correctness of each pattern occurrence on this text file (must be the same indexed)" << endl;
 	//cout << "   -h           use hybrid bitvectors instead of elias-fano in both RLBWT and predecessor structures. -h is required "<<endl;
 	//cout << "                if the index was built with -h options enabled."<<endl;
+	cout << "   -o <ofile>   write pattern occurrences to this file (ASCII)" << endl;
 	cout << "   <index>      index file (with extension .ri)" << endl;
 	cout << "   <patterns>   file in pizza&chili format containing the patterns." << endl;
 	exit(0);
@@ -37,6 +39,16 @@ void parse_args(char** argv, int argc, int &ptr){
 		}
 
 		check = string(argv[ptr]);
+		ptr++;
+
+	}else if(s.compare("-o")==0){
+
+		if(ptr>=argc-1){
+			cout << "Error: missing parameter after -o option." << endl;
+			help();
+		}
+
+		ofile = string(argv[ptr]);
 		ptr++;
 
 	}/*else if(s.compare("-h")==0){
@@ -62,6 +74,14 @@ void locate(std::ifstream& in, string patterns){
 
     string text;
     bool c = false;
+
+    ofstream out;
+
+    if(ofile.compare(string())!=0){
+
+    	out = ofstream(ofile);
+
+    }
 
     if(check.compare(string()) != 0){
 
@@ -118,6 +138,14 @@ void locate(std::ifstream& in, string patterns){
 		//cout << "locating " << idx.occ(p) << " occurrences of "<< p << " ... " << flush;
 
 		auto OCC = idx.locate_all(p);	//occurrences
+
+		if(ofile.compare(string())!=0){
+
+			sort(OCC.begin(),OCC.end());
+
+			for(auto x:OCC) out << (int)x << endl;
+
+		}
 
 		occ_tot += OCC.size();
 
