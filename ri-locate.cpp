@@ -165,7 +165,7 @@ void locate(std::ifstream& in, string patterns){
 				if(text.substr(o,p.size()).compare(p) != 0){
 
 					cout << "Error: wrong occurrence: " << o << " ("  << occ_tot << " occurrences"  << ") "<< endl;
-					for(auto c : text.substr(o,p.size()+1)) cout << int(c) << " ";
+					for(auto c : text.substr(o,p.size())) cout << int(c) << " ";
 					cout << "  /  ";
 					for(auto c : p) cout << int(c) << " ";
 					cout << endl;
