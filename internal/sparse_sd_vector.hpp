@@ -141,6 +141,18 @@ public:
 	}
 
 	/*
+	 * input: position 0<=i<=n
+	 * output: rank of predecessor of i (i excluded) in
+	 * bitvector space. If i does not have a predecessor,
+	 * return rank of the last bit set in the bitvector
+	 */
+	ulint predecessor_rank_circular(ulint i){
+
+		return rank(i)==0 ? number_of_1()-1 : rank(i)-1;
+
+	}
+
+	/*
 	 * retrieve length of the i-th gap (i>=0). gap length includes the leading 1
 	 * \param i<number_of_1()
 	 *

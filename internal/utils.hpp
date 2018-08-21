@@ -36,6 +36,13 @@ string get_time(uint64_t time){
 
 }
 
+uint8_t bitsize(uint64_t x){
+
+	if(x==0) return 1;
+	return 64 - __builtin_clzll(x);
+
+}
+
 //parse pizza&chilli patterns header:
 void header_error(){
 	cout << "Error: malformed header in patterns file" << endl;

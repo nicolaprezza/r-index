@@ -438,7 +438,7 @@ public:
 	}
 
 	/*
-	 * input: inclusive run rn, character c
+	 * input: inclusive range rn, character c
 	 *
 	 * return the position j that is closest to rn.first,
 	 * such that character in position j is c and that is

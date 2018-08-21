@@ -16,6 +16,7 @@
 #include <permutation.hpp>
 #include "sparse_sd_vector.hpp"
 #include "sparse_hyb_vector.hpp"
+#include "utils.hpp"
 
 using namespace sdsl;
 
@@ -48,118 +49,98 @@ public:
 
 		cout << "Text length = " << input.size() << endl << endl;
 
-		cout << "(1/3) Building BWT ";
-		if(sais) cout << "(SE-SAIS) ... " << flush;
+		cout << "(1/3) Building BWT and computing SA samples";
+		if(sais) cout << " (SE-SAIS) ... " << flush;
 		else cout << "(DIVSUFSORT) ... " << flush;
 
 		//build run-length encoded BWT
-		{
 
-			string bwt_s = build_bwt(input);
+		auto bwt_and_samples = sufsort(input);
 
-			cout << "done.\n(2/3) RLE encoding BWT ... " << flush;
+		string& bwt_s = get<0>(bwt_and_samples);
+		vector<pair<ulint,ulint> >& samples_first_vec = get<1>(bwt_and_samples);
+		vector<ulint>& samples_last_vec = get<2>(bwt_and_samples);
 
-			bwt = rle_string_t(bwt_s);
+		cout << "done.\n(2/3) RLE encoding BWT ... " << flush;
 
-			//build F column
-			F = vector<ulint>(256,0);
-			for(uchar c : bwt_s)
-				F[c]++;
+		bwt = rle_string_t(bwt_s);
 
-			for(ulint i=255;i>0;--i)
-				F[i] = F[i-1];
+		//build F column
+		F = vector<ulint>(256,0);
+		for(uchar c : bwt_s)
+			F[c]++;
 
-			F[0] = 0;
+		for(ulint i=255;i>0;--i)
+			F[i] = F[i-1];
 
-			for(ulint i=1;i<256;++i)
-				F[i] += F[i-1];
+		F[0] = 0;
 
-			for(ulint i=0;i<bwt_s.size();++i)
-				if(bwt_s[i]==TERMINATOR)
-					terminator_position = i;
+		for(ulint i=1;i<256;++i)
+			F[i] += F[i-1];
 
-			assert(input.size()+1 == bwt.size());
+		for(ulint i=0;i<bwt_s.size();++i)
+			if(bwt_s[i]==TERMINATOR)
+				terminator_position = i;
 
-		}
+		assert(input.size()+1 == bwt.size());
 
 		cout << "done. " << endl<<endl;
 
-		auto r = bwt.number_of_runs();
+		r = bwt.number_of_runs();
+
+		assert(samples_first_vec.size() == r);
+		assert(samples_last_vec.size() == r);
+
+		int log_r = bitsize(uint64_t(r));
+		int log_n = bitsize(uint64_t(bwt.size()));
 
 		cout << "Number of BWT equal-letter runs: r = " << r << endl;
 		cout << "Rate n/r = " << double(bwt.size())/r << endl;
 		cout << "log2(r) = " << log2(double(r)) << endl;
 		cout << "log2(n/r) = " << log2(double(bwt.size())/r) << endl << endl;
 
-		cout << "(3/3) Building U, D factorizations and DU, RD permutations ..." << flush;
+		cout << "(3/3) Building phi function ..." << flush;
 
-		auto rank_up = bit_vector::rank_1_type(&sampled_up);
-		auto rank_down = bit_vector::rank_1_type(&sampled_down);
-		auto rank_down_bwt = bit_vector::rank_1_type(&sampled_down_bwt);
+		//sort samples of first positions in runs according to text position
+		std::sort(samples_first_vec.begin(), samples_first_vec.end());
 
+		//build Elias-Fano predecessor
 		{
 
-			vector<ulint> DU_vec(r-1,r);
-			vector<ulint> RD_vec(r-1,r);
+			auto pred_bv = vector<bool>(bwt_s.size(),false);
 
-			//positions in vectors sa_up_samples and sa_down_samples
-			ulint u = 0;
-			ulint d = 0;
+			for(auto p : samples_first_vec){
 
-			//scan BWT positions
-			for(ulint k=0;k<bwt.size();++k){
-
-				if(sampled_up_bwt[k]){
-
-					assert(k>0);
-					assert(bwt[k-1]!=bwt[k]);
-
-					auto u_sample = rank_up(sa_up_samples[u++]);
-					assert(d>0);
-					auto d_sample = rank_down(sa_down_samples[d-1]);
-
-					assert(u_sample<r-1);
-					assert(d_sample<r-1);
-
-					DU_vec[d_sample] = u_sample;
-
-				}
-
-				if(sampled_down_bwt[k]){
-
-					assert(k<bwt.size()-1);
-					assert(bwt[k]!=bwt[k+1]);
-
-					//rank of run containing position k
-					auto r_pos = rank_down_bwt(k);
-					auto d_sample = rank_down(sa_down_samples[d++]);
-
-					assert(d_sample<r-1);
-					assert(r_pos<r-1);
-
-					RD_vec[r_pos] = d_sample;
-
-				}
+				assert(p.first < pred_bv.size());
+				pred_bv[p.first] = true;
 
 			}
 
-			//check that we filled all permutation's positions
-			assert(not_contains(DU_vec,r));
-			assert(not_contains(RD_vec,r));
-
-			//build permutation structures
-			DU = permutation(DU_vec);
-			RD = permutation(RD_vec);
+			pred = sparse_bv_type(pred_bv);
 
 		}
 
-		//build gap-encoded bitvectors
-		U = sparse_bv_type(sampled_up);
-		D = sparse_bv_type(sampled_down);
+		assert(pred.rank(pred.size()) == r);
 
-		assert(D.rank(D.size())==r-1);
-		assert(U.rank(U.size())==r-1);
+		//last text position must be sampled
+		assert(pred[pred.size()-1]);
 
+		samples_last = int_vector<>(r,0,log_n); //text positions corresponding to last characters in BWT runs, in BWT order
+		pred_to_run = int_vector<>(r,0,log_r); //stores the BWT run (0...R-1) corresponding to each position in pred, in text order
+
+		for(ulint i=0;i<samples_last_vec.size();++i){
+
+			assert(bitsize(uint64_t(samples_last_vec[i])) <= log_n);
+			samples_last[i] = samples_last_vec[i];
+
+		}
+
+		for(ulint i=0;i<samples_first_vec.size();++i){
+
+			assert(bitsize(uint64_t(samples_first_vec[i].second)) <= log_r);
+			pred_to_run[i] = samples_first_vec[i].second;
+
+		}
 
 		cout << " done. " << endl<<endl;
 
@@ -206,47 +187,33 @@ public:
 	}
 
 	/*
-	 * input: position j on the text corresponding to some
-	 * position k on the F-column of the BWT (i.e. SA[k]=j)
-	 *
-	 * output: SA[k+1]
+	 * Phi function. Phi(SA[0]) is undefined
 	 */
-	ulint next_SA(ulint j){
+	ulint Phi(ulint i){
 
-		auto rn = D.rank(j);
+		assert(i != bwt.size()-1);
 
-		auto pred_d_rank = rn == 0 ? D.rank(D.size())-1 : rn-1;//predecessor in rank space
-		auto pred_d = D.select(pred_d_rank);//text position
+		//jr is the rank of the predecessor of i (circular)
+		ulint jr = pred.predecessor_rank_circular(i);
 
-		auto delta = pred_d == bwt.size()-1 ? j+1 : j-pred_d;
+		assert(jr<=r-1);
 
-		auto pred_u = U.select(DU[pred_d_rank]);
+		//the actual predecessor
+		ulint j = pred.select(jr);
 
-		return (pred_u + delta) % bwt.size();
+		assert(jr<r-1 or j == bwt.size()-1);
 
-	}
+		//distance from predecessor
+		ulint delta = j<i ? i-j : i+1;
 
-	/*
-	 * input: position j on the text corresponding to some
-	 * position k on the F-column of the BWT (i.e. SA[k]=j)
-	 *
-	 * output: SA[k-1]
-	 */
-	ulint prev_SA(ulint j){
+		//cannot fall on first run: this can happen only if I call Phi(SA[0])
+		assert(pred_to_run[jr]>0);
 
-		//in this case, k = 0: no previous SA sample
-		assert(j != bwt.size()-1);
+		//sample at the end of previous run
+		assert(pred_to_run[jr]-1 < samples_last.size());
+		ulint prev_sample = samples_last[ pred_to_run[jr]-1 ];
 
-		auto rn = U.rank(j);
-
-		auto pred_u_rank = rn == 0 ? U.rank(U.size())-1 : rn-1;//predecessor in rank space
-		auto pred_u = U.select(pred_u_rank);//text position
-
-		auto delta = pred_u == bwt.size()-1 ? j+1 : j-pred_u;
-
-		auto pred_d = D.select(DU.inv(pred_u_rank));
-
-		return (pred_d + delta) % bwt.size();
+		return (prev_sample + delta) % bwt.size();
 
 	}
 
@@ -338,7 +305,7 @@ public:
 
 		auto rn = count(P);
 
-		return (rn.second-rn.first)+1;
+		return rn.second>=rn.first ? (rn.second-rn.first)+1 : 0;
 
 	}
 
@@ -359,38 +326,26 @@ public:
 
 		vector<ulint> OCC;
 
-		triple res = count_and_get_occ(P);
+		pair<range_t, ulint> res = count_and_get_occ(P);
 
-		range_t rn = std::get<0>(res);
-		ulint k = std::get<2>(res);//SA position
-		ulint j = std::get<1>(res);//text position: SA[k]
+		ulint L = std::get<0>(res).first;
+		ulint R = std::get<0>(res).second;
+		ulint k = std::get<1>(res);	//SA[R]
 
-		assert(k >= rn.first and k <= rn.second);
+		ulint n_occ = R>=L ? (R-L)+1 : 0;
 
-		OCC.push_back(j);
+		if(n_occ>0){
 
-		ulint before = k - rn.first;//occurrences to extract before k (k excluded)
-		ulint after = rn.second - k;//occurrences to extract after k (k excluded)
+			OCC.push_back(k);
 
-		ulint j1 = j;
+			for(ulint i=1;i<n_occ;++i){
 
-		for(ulint i = 0; i<before;++i){
+				k = Phi(k);
+				OCC.push_back(k);
 
-			j1 = prev_SA(j1);
-			OCC.push_back(j1);
-
-		}
-
-		j1 = j;
-
-		for(ulint i = 0; i<after;++i){
-
-			j1 = next_SA(j1);
-			OCC.push_back(j1);
+			}
 
 		}
-
-		assert(OCC.size() == (rn.second-rn.first)+1);
 
 		return OCC;
 
@@ -435,10 +390,9 @@ public:
 
 		w_bytes += bwt.serialize(out);
 
-		w_bytes += U.serialize(out);
-		w_bytes += D.serialize(out);
-		w_bytes += DU.serialize(out);
-		w_bytes += RD.serialize(out);
+		w_bytes += pred.serialize(out);
+		w_bytes += samples_last.serialize(out);
+		w_bytes += pred_to_run.serialize(out);
 
 		return w_bytes;
 
@@ -456,10 +410,11 @@ public:
 
 		bwt.load(in);
 
-		U.load(in);
-		D.load(in);
-		DU.load(in);
-		RD.load(in);
+		r = bwt.number_of_runs();
+
+		pred.load(in);
+		samples_last.load(in);
+		pred_to_run.load(in);
 
 	}
 
@@ -516,36 +471,20 @@ public:
 private:
 
 	/*
-	 * temporary vectors used to speed-up construction
-	 */
-
-	//BWT positions associated to first position in each BWT run. In total r-1 entries
-	//because we do not store up sample for the first BWT position
-	vector<ulint> sa_up_samples;
-	//BWT positions associated to first position in each BWT run
-	//in total, r-1 entries: we do not store sample for last BWT position
-	vector<ulint> sa_down_samples;
-
-	//bitvectors of length n marking, respectively, first and last
-	//BWT character in each run
-	bit_vector sampled_up; //mark text positions associated with first position of a run (except first run)
-	bit_vector sampled_down; //mark text positions associated with last position of a run (except last run)
-	bit_vector sampled_up_bwt; //mark first position of each run on bwt (except first run)
-	bit_vector sampled_down_bwt; //mark last position of each run on bwt (except last run)
-
-	/*
-	 * Retrieve range of input pattern, plus locate an occurrence <j, k> of the pattern, where j is text pos and k is corresponding bwt F-position, i.e. SA[k] = j
+	 * returns <<l,r>, SA[r] >, where l,r are the inclusive ranges of the pattern P. If P does not occur, then l>r
 	 *
 	 * returns <range, j,k>
 	 *
 	 */
-	triple count_and_get_occ(string &P){
+	pair<range_t, ulint> count_and_get_occ(string &P){
 
-		//coordinates of an occurrence of current pattern suffix
-		ulint j = 0;
+		//k = SA[r]
 		ulint k = 0;
 
 		range_t range = full_range();
+		assert(r-1 < samples_last.size());
+		k = (samples_last[r-1]+1) % bwt.size();
+
 		range_t range1;
 
 		ulint m = P.size();
@@ -557,28 +496,38 @@ private:
 			range1 = LF(range,c);
 
 			//if suffix can be left-extended with char
-			if(range1 != range_t(1,0)){
+			if(range1.first <= range1.second){
 
-				if(is_unary(range)){
 
-					assert(i>0);
+				if(bwt[range.second] == c){
 
-					assert(j>0);
-
-					//j-1 is an occurrence of the new pattern suffix
-					j = j-1;
-
-					//k is the new SA position corresponding to j
-					k = LF(k);
+					// last c is at the end of range. Then, we have this sample by induction!
+					assert(k>0);
+					k--;
 
 				}else{
 
-					//find a brand new occurrence
-					k = get_sampled_position(range, c); //careful: k is an L-position
-					j = k==0 ? 0 : bwt_sample(k);
+					//find last c in range (there must be one because range1 is not empty)
+					//and get its sample (must be sampled because it is at the end of a run)
+					//note: by previous check, bwt[range.second] != c, so we can use argument range.second
+					ulint rnk = bwt.rank(range.second,c);
 
-					//map from L to F column
-					k = LF(k);
+					//there must be at least one c before range.second
+					assert(rnk>0);
+
+					//this is the rank of the last c
+					rnk--;
+
+					//jump to the corresponding BWT position
+					ulint j = bwt.select(rnk,c);
+
+					//the c must be in the range
+					assert(j>=range.first and j < range.second);
+
+					//run of position j
+					ulint run_of_j = bwt.run_of_position(j);
+
+					k = samples_last[run_of_j];
 
 				}
 
@@ -588,123 +537,17 @@ private:
 
 		}
 
-		return triple(range, j, k);
+		return {range, k};
 
 	}
 
 	/*
-	 * input: inclusive BWT range rn and character c
-	 *
-	 * find a BWT position k inside rn such that bwt[k]=c and k is sampled
-	 * (i.e. k is the first or last position of its run and k is not first or last
-	 * BWT position). Return k
-	 *
+	 * returns a triple containing BWT of input string
+	 * (uses 0x1 character as terminator), text positions corresponding
+	 * to first letters in BWT runs (plus their ranks from 0 to R-1), and text positions corresponding
+	 * to last letters in BWT runs (in BWT order)
 	 */
-	ulint get_sampled_position(range_t rn, uchar c){
-
-		//check that rn contains at least 2 characters
-		assert(not is_unary(rn));
-
-		//check that BWT range contains character c
-		assert(LF(rn,c) != range_t(1,0));
-
-		/*
-		 * Heuristic: retrieving SA[k-1] from SA[k] requires using permutation UD ( O(1/epsilon) time),
-		 * while retrieving SA[k+1] from SA[k] requires using permutation DU ( O(1) time). It follows that is more
-		 * efficient to extract SA entries from top to bottom of the range => better to locate top entries in the
-		 * BWT range (so we minimize number of bottom-up steps). We therefore consider these 2 cases (rather than
-		 * the symmetric ones):
-		 *
-		 * 1. bwt[rn] = ccc..cccx.... return position of last c in the first c-run
-		 * 2. bwt[rn] = xx...xxcccc...cccc...yy... return position of first c in first c-run
-		 */
-
-		ulint k = bwt.closest_run_break(rn,c);
-
-		return k;
-
-	}
-
-	/*
-	 * input: inclusive BWT range [L..R]
-	 *
-	 * output: true iff BWT[L..R] is a unary string
-	 *
-	 */
-	bool is_unary(range_t rn){
-
-		return bwt.run_of_position(rn.first) == bwt.run_of_position(rn.second);
-
-	}
-
-	/*
-	 * input: position k on the BWT
-	 *
-	 * k must be a sampled position, i.e. first or last in its run AND
-	 * not the first or last BWT positions
-	 *
-	 * return: text position j associated with BWT position k
-	 *
-	 */
-	ulint bwt_sample(ulint k){
-
-		assert(k>0);
-		assert(k<bwt.size()-1);
-		assert(bwt[k] != bwt[k-1] or bwt[k] != bwt[k+1]);
-
-		//is k the last position of its run? (recall that we sample down positions)
-		bool down = bwt[k] != bwt[k+1];
-
-		//run of BWT position k or k-1 (depending on who is a down position)
-		ulint run = bwt.run_of_position(down ? k : k-1);
-
-		//locate down position
-		ulint rd_run = RD[run];
-
-		//if k is a down position, map from D-rank space to text. Otherwise,
-		//map from D-rank space to U-rank space (i.e. move down in the BWT)
-		//and then pass from U-rank space to text position
-		ulint sample = down ? D.select(rd_run) : U.select(DU[rd_run]);
-
-		return sample;
-
-	}
-
-	bool not_contains(vector<ulint> &V, ulint x){
-
-		ulint r=0;
-
-		for(auto y:V){
-
-			if(y==x){
-
-				cout << "failed at run " << r << " / " << V.size() << endl;
-				return false;
-
-			}
-
-			r++;
-
-		}
-
-		return true;
-
-	}
-
-	uint8_t bitsize(uint64_t x){
-
-		if(x==0) return 1;
-		return 64 - __builtin_clzll(x);
-
-	}
-
-
-	/*
-	 * builds BWT of input string
-	 * uses 0x1 character as terminator
-	 *
-	 */
-	string build_bwt(string &s){
+	tuple<string, vector<pair<ulint, ulint> >, vector<ulint> > sufsort(string &s){
 
 		string bwt_s;
 
@@ -728,6 +571,9 @@ private:
 	    //now build BWT from SA
 	    int_vector_buffer<> sa(cache_file_name(conf::KEY_SA, cc));
 
+	    vector<pair<ulint, ulint> > samples_first; 	//text positions corresponding to first characters in BWT runs, and their ranks 0...R-1
+	    vector<ulint> samples_last;	 				//text positions corresponding to last characters in BWT runs
+
 	    {
 
 	        for (ulint i=0; i<sa.size(); i++){
@@ -740,48 +586,47 @@ private:
 	            else
 	            	bwt_s.push_back(TERMINATOR);
 
+	            //Insert samples at begin of runs
+	            if(i>0){
+
+	            	if(	i==1 ||									//case 1: i-1 == 0 is at run begin
+						(i>1 && bwt_s[i-1] != bwt_s[i-2])		//case 2: i-1 is at the begin of a run
+	            	){
+
+	            		samples_first.push_back( {sa[i-1]>0?sa[i-1]-1:sa.size()-1, samples_first.size()} );
+
+	            	}
+
+	            	//check last BWT letter
+	            	if(i==sa.size()-1 && bwt_s[i]!=bwt_s[i-1]) samples_first.push_back( {sa[i]>0?sa[i]-1:sa.size()-1, samples_first.size()} );
+
+				}
+
+	            //Insert samples at end of runs
+	            if(i>0){
+
+	            	if(	bwt_s[i-1] != bwt_s[i]		//i-1 is at the end of a run
+	            	){
+
+	            		samples_last.push_back( sa[i-1]>0?sa[i-1]-1:sa.size()-1 );
+
+	            	}
+
+	            	//last BWT letter is always at end of a run and is never checked in the previous if
+	            	if(i==sa.size()-1) samples_last.push_back( sa[i]>0?sa[i]-1:sa.size()-1 );
+
+	            }
+
 	        }
 
 	    }
 
-	    sampled_up = bit_vector(bwt_s.size());
-	    sampled_down = bit_vector(bwt_s.size());
-	    sampled_up_bwt = bit_vector(bwt_s.size());
-	    sampled_down_bwt = bit_vector(bwt_s.size());
-
-	    /*
-	     * scan BWT and suffix array
-	     */
-	    for(ulint k=0;k<bwt_s.size();++k){
-
-    		//text position associated with bwt position k
-    		ulint j = sa[k]>0 ? sa[k]-1 : bwt_s.size()-1;
-
-	    	//position k is the first in its run
-	    	if(k>0 and bwt_s[k]!=bwt_s[k-1]){
-
-	    		sampled_up_bwt[k] = true;
-	    		sampled_up[j] = true;
-	    		sa_up_samples.push_back( j );
-
-	    	}
-
-	    	//position k is the last in its run
-			if(k<bwt_s.size()-1 and bwt_s[k]!=bwt_s[k+1]){
-
-	    		sampled_down_bwt[k] = true;
-	    		sampled_down[j] = true;
-
-	    		sa_down_samples.push_back( j );
-
-			}
-
-	    }
+	    assert(samples_first.size() == samples_last.size());
 
 	    sdsl::remove(cache_file_name(conf::KEY_TEXT, cc));
 	    sdsl::remove(cache_file_name(conf::KEY_SA, cc));
 
-	    return bwt_s;
+	    return {bwt_s, samples_first, samples_last};
 
 	}
 
@@ -808,40 +653,13 @@ private:
 	//L column of the BWT, run-length compressed
 	rle_string_t bwt;
 	ulint terminator_position = 0;
+	ulint r = 0;//number of BWT runs
 
-	/*
-	 * Invertible permutations (i.e. efficient map and inverse):
-	 *
-	 * DU maps (D-ranks of) text positions associated to last (down) position of each BWT run to
-	 * the (U-ranks of) first (up) position of the next run. Size of the permutations is r-1 because
-	 * the first/last run does not have runs before/after it.
-	 *
-	 * RD  maps BWT runs to text (D-ranks of) text positions associated to the Last (down) position
-	 * of the corresponding BWT run (i.e. D-rank of text position associated to last position of that run)
-	 *
-	 * total: 2r log r * (1+epsilon) bits
-	 *
-	 */
 
-	permutation DU; //Down samples to Up samples (all in rank space on D and U)
-	permutation RD; //BWT runs to down samples on text in rank space (i.e. bitvector D). Last run is excluded!
-
-	/*
-	 * gap-encoded bitvectors marking with a bit set sampled positions on the text
-	 *
-	 * U : marks text positions that are the first in their BWT run, except for the first run.
-	 * D : marks text positions that are the last in their BWT run, except for the last run.
-	 *
-	 * r-1 bits set in each bitvector. Overall size = 2r log(n/r) bits
-	 *
-	 */
-
-	sparse_bv_type U;
-	sparse_bv_type D;
-
-	/*
-	 * overall: DU, RD, U, and D take r log n bits (plus low-order terms)
-	 */
+	//the predecessor structure on positions corresponding to first chars in BWT runs
+	sparse_bv_type pred;
+	int_vector<> samples_last; //text positions corresponding to last characters in BWT runs, in BWT order
+	int_vector<> pred_to_run; //stores the BWT run (0...R-1) corresponding to each position in pred, in text order
 
 };
 

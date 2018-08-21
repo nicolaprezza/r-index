@@ -147,11 +147,11 @@ void locate(std::ifstream& in, string patterns){
 
 		}
 
-		occ_tot += OCC.size();
+		occ_tot = OCC.size();
 
 		if(c){//check occurrences
 
-			if(OCC.size() != idx.occ(p)){
+			if(occ_tot != idx.occ(p)){
 
 				cout << "Error: wrong number of located occurrences: " << OCC.size() << "/" << idx.occ(p) << endl;
 				exit(0);
@@ -160,10 +160,19 @@ void locate(std::ifstream& in, string patterns){
 
 			for(auto o:OCC){
 
+				//for(auto c : p) cout << int(c) << " ";
+
 				if(text.substr(o,p.size()).compare(p) != 0){
 
-					cout << "Error: wrong occurrence: " << o << endl;
-					exit(0);
+					cout << "Error: wrong occurrence: " << o << " ("  << occ_tot << " occurrences"  << ") "<< endl;
+					for(auto c : text.substr(o,p.size()+1)) cout << int(c) << " ";
+					cout << "  /  ";
+					for(auto c : p) cout << int(c) << " ";
+					cout << endl;
+
+					break;
+
+					//exit(0);
 
 				}
 
@@ -221,7 +230,7 @@ int main(int argc, char** argv){
 
 	if(hyb){
 
-		locate<r_index<sparse_hyb_vector,rle_string_hyb> >(in, patt_file);
+		//locate<r_index<sparse_hyb_vector,rle_string_hyb> >(in, patt_file);
 
 	}else{
 
