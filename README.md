@@ -13,11 +13,13 @@ The r-index is the first full-text index of size O(r), r being the number of BWT
 
 Let s be the alphabet size and fix a constant eps>0. The r-index offers the following tradeoffs:
 
-- Space: r * ( log s + log(n/r) + (2+2*eps)*log n ) bits
+- Space: r * ( log s + (1+eps)log(n/r) + 2log n ) bits
 - Count time: O( (m/eps) * (log (n/r) + log s) )
-- Locate time: After count, O( log(n/r) + 1/eps ) time per occurrence 
+- Locate time: After count, O( log(n/r) ) time per occurrence 
 
 On very repetitive datasets, the r-index locates orders of magnitude faster than the RLCSA (with a sampling rate resulting in the same size for the two indexes).
+
+NEWS: refactored locate strategy. Let (l,r) be the SA range. Now, the index first finds SA[r] and then applies function Phi to locate SA[r-1], SA[r-2], ..., SA[l]. This is both faster and more space efficient than the strategy originally implemented and described in the paper.
 
 ### Download
 
