@@ -625,7 +625,7 @@ private:
 	    sdsl::remove(cache_file_name(conf::KEY_TEXT, cc));
 	    sdsl::remove(cache_file_name(conf::KEY_SA, cc));
 
-	    return {bwt_s, samples_first, samples_last};
+	    return tuple<string, vector<pair<ulint, ulint> >, vector<ulint> >(bwt_s, samples_first, samples_last);
 
 	}
 

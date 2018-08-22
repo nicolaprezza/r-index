@@ -131,8 +131,8 @@ int main(int argc, char** argv){
 
 	if(hyb){
 
-		auto idx = r_index<sparse_hyb_vector,rle_string_hyb>(input,sais);
-		idx.serialize(out);
+		//auto idx = r_index<sparse_hyb_vector,rle_string_hyb>(input,sais);
+		//idx.serialize(out);
 
 	}else{
 
