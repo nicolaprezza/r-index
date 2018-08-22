@@ -147,11 +147,16 @@ void locate(std::ifstream& in, string patterns){
 
 		}
 
-		occ_tot = OCC.size();
+		occ_tot += OCC.size();
 
 		if(c){//check occurrences
 
-			if(occ_tot != idx.occ(p)){
+			//remove duplicates, if any (there shouldn't be!)
+			sort(OCC.begin(),OCC.end());
+			auto it = unique(OCC.begin(),OCC.end());
+			OCC.resize(std::distance(OCC.begin(),it));
+
+			if(OCC.size() != idx.occ(p)){
 
 				cout << "Error: wrong number of located occurrences: " << OCC.size() << "/" << idx.occ(p) << endl;
 				exit(0);
