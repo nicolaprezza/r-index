@@ -1,5 +1,9 @@
- /*
-  * succinct_bit_vector: an wrapper on biy_vector of the sdsl library, with support for rank and select
+// Copyright (c) 2017, Nicola Prezza.  All rights reserved.
+// Use of this source code is governed
+// by a MIT license that can be found in the LICENSE file.
+
+/*
+  * succinct_bit_vector: a wrapper on biy_vector of the sdsl library, with support for rank and select
   */
 
 
