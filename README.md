@@ -57,7 +57,7 @@ Run
 
 > ri-count index.ri patterns
 
-to count number of occurrences of the patterns, where <patterns> is a file containing the patterns in pizza&chili format (http://pizzachili.dcc.uchile.cl/experiments.html). To generate pattern files, use the tool http://pizzachili.dcc.uchile.cl/utils/genpatterns.c 
+to count number of occurrences of the patterns, where <patterns> is a file containing the patterns in pizza&chili format (http://pizzachili.dcc.uchile.cl/experiments.html). To generate pattern files, use the tool http://pizzachili.dcc.uchile.cl/utils/genpatterns.c. Note: the Pizza&chili format consists of a header followed by newline followed by all the patterns concatenated (without any separator). The patterns must all be of the same length.
 
 Run
 
