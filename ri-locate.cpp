@@ -121,6 +121,8 @@ void locate(std::ifstream& in, string patterns){
 	uint last_perc = 0;
 
 	ulint occ_tot=0;
+	
+	vector<ulint> OCC;
 
 	//extract patterns from file and search them in the index
 	for(ulint i=0;i<n;++i){
@@ -141,7 +143,7 @@ void locate(std::ifstream& in, string patterns){
 
 		//cout << "locating " << idx.occ(p) << " occurrences of "<< p << " ... " << flush;
 
-		auto OCC = idx.locate_all(p);	//occurrences
+		idx.locate_all(p, OCC);	//occurrences
 
 		if(ofile.compare(string())!=0){
 

@@ -81,9 +81,7 @@ public:
 		for(ulint i=1;i<256;++i)
 			F[i] += F[i-1];
 
-		for(ulint i=0;i<bwt_s.size();++i)
-			if(bwt_s[i]==TERMINATOR)
-				terminator_position = i;
+		terminator_position = bwt_s.find(TERMINATOR);
 
 		assert(input.size()+1 == bwt.size());
 
@@ -197,12 +195,11 @@ public:
 		assert(i != bwt.size()-1);
 
 		//jr is the rank of the predecessor of i (circular)
-		ulint jr = pred.predecessor_rank_circular(i);
+		pair<ulint, ulint> pred_result = pred.predecessor_rank_and_select_circular(i);
+		ulint jr = pred_result.first;
+		ulint j = pred_result.second; //the actual predecessor
 
 		assert(jr<=r-1);
-
-		//the actual predecessor
-		ulint j = pred.select(jr);
 
 		assert(jr<r-1 or j == bwt.size()-1);
 
@@ -325,10 +322,9 @@ public:
 	 * locate all occurrences of P and return them in an array
 	 * (space consuming if result is big).
 	 */
-	vector<ulint> locate_all(string& P){
-
-		vector<ulint> OCC;
-
+	void locate_all(string& P, vector<ulint>& OCC){
+		
+		OCC.clear();
 		pair<range_t, ulint> res = count_and_get_occ(P);
 
 		ulint L = std::get<0>(res).first;
@@ -349,9 +345,6 @@ public:
 			}
 
 		}
-
-		return OCC;
-
 	}
 
 
