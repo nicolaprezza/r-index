@@ -325,10 +325,9 @@ public:
 	 * locate all occurrences of P and return them in an array
 	 * (space consuming if result is big).
 	 */
-	vector<ulint> locate_all(string& P){
-
-		vector<ulint> OCC;
-
+	void locate_all(string& P, vector<ulint>& OCC){
+		
+		OCC.clear();
 		pair<range_t, ulint> res = count_and_get_occ(P);
 
 		ulint L = std::get<0>(res).first;
@@ -349,9 +348,6 @@ public:
 			}
 
 		}
-
-		return OCC;
-
 	}
 
 
