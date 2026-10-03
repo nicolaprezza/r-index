@@ -81,9 +81,7 @@ public:
 		for(ulint i=1;i<256;++i)
 			F[i] += F[i-1];
 
-		for(ulint i=0;i<bwt_s.size();++i)
-			if(bwt_s[i]==TERMINATOR)
-				terminator_position = i;
+		terminator_position = bwt_s.find(TERMINATOR);
 
 		assert(input.size()+1 == bwt.size());
 
