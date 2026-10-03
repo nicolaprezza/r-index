@@ -143,16 +143,24 @@ public:
 
 
 	}
-
+	
 	/*
 	 * input: position 0<=i<=n
-	 * output: rank of predecessor of i (i excluded) in
-	 * bitvector space. If i does not have a predecessor,
-	 * return rank of the last bit set in the bitvector
+	 * output: pair (jr, j) where:
+	 * - jr: rank of predecessor of i (i excluded) in rank space.
+	 *   If i does not have a predecessor, return rank of the last bit set.
+	 * - j: position of the predecessor in bitvector space.
 	 */
-	ulint predecessor_rank_circular(ulint i){
+	inline pair<ulint, ulint> predecessor_rank_and_select_circular(ulint i){
 
-		return rank(i)==0 ? number_of_1()-1 : rank(i)-1;
+		ulint r = rank(i);
+		ulint jr = (r == 0) ? number_of_1() - 1 : r - 1;
+
+		assert(jr < number_of_1());
+
+		ulint j = select1(jr + 1);
+
+		return {jr, j};
 
 	}
 

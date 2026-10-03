@@ -195,12 +195,11 @@ public:
 		assert(i != bwt.size()-1);
 
 		//jr is the rank of the predecessor of i (circular)
-		ulint jr = pred.predecessor_rank_circular(i);
+		pair<ulint, ulint> pred_result = pred.predecessor_rank_and_select_circular(i);
+		ulint jr = pred_result.first;
+		ulint j = pred_result.second; //the actual predecessor
 
 		assert(jr<=r-1);
-
-		//the actual predecessor
-		ulint j = pred.select(jr);
 
 		assert(jr<r-1 or j == bwt.size()-1);
 
